@@ -25,6 +25,8 @@ that included tracing every call to defineClass and every way to define a class 
 -> Throws a VMError fatal error, cannot be catched
 -> instead
 
+-> introduce the concept of scope where native restrictions are ignored
+
 \section{Dynamic Class Loading}
 we want to avoid bytecode rewriting both complex and introduce some non trivial changes to the compiler
 2. defineClass must always throw an UnsupportedOperation Exception when called from the user code, and behave “normally” when the call is made from the JDK → challenge is to distinguish who made the call
@@ -129,9 +131,10 @@ Do an upcall in native code in ClassLoader.c to check if the dynamicClassLoading
 Talk about BMI, and how certain BMI are allowed and other not, as well as restricting the LambdaMetafactory
 Use lambda to surround and hide the checks
 \section{Reflection}
+don't want to trace internal classes!
 
 \section{Tracing agent}
-
+Have everything in one place -> simple work flow run the agent test with java under native restrictions adn then build the image -> don't need to build graalvm before
 \section{Technology Compatibility Kit}
 An experience in meta-programming.
 Gradle project designed to compile with an annotation processor. Parses all @Test annotation and write the json configuration for each test on the fly
@@ -152,34 +155,160 @@ Formulating a rigorous semantics of a large, complex, practical programming lang
     Reference implementations: Description by computer program
     Test suites: Description by examples of programs and their expected behaviors. While few language specifications start off in this form, the evolution of some language specifications has been influenced by the semantics of a test suite (e.g. in the past the specification of Ada has been modified to match the behavior of the Ada Conformity Assessment Test Suite).
 
-    
 %%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{The Native Image Specifications: One Spec to Rule them All}
 %%%%%%%%%%%%%%%%%%%%%%%%
-Common specifications for both Native Image and the Java mode under native restrictions
-\section{java.lang.SecurityManager}
-Under the native restriction, the java.lang.SecurityManager behaves differently:
-\begin{enumerate}
-    \item java.lang.System\#getSecurityManager() always returns null.
-    \item java.lang.System\#setSecurityManager(SecurityManager sm) always throws an UnsupportedOperationException. 
-\end{enumerate}
-\section{java.lang.ClassLoader / Class Loading, Linking and Initialization}
-When running under native restrictions the following rules apply:
-\begin{enumerate}
-    \item The application class loader can not be overridden by the user.
-    \item All classes from the classpath are linked before the execution of the program.
-    \item All invokedynamic instructions are resolved in the step before program execution and replaced with adequate bytecodes. For example, all calls to java.lang.invoke.LambdaMetafactory are replaced with the calls to a pregenerated class.
-\end{enumerate}
+# Native Image Semantics
 
-The native restrictions require that java.lang.ClassLoader\#defineClass0, java.lang.ClassLoader\#defineClass1, java.lang.ClassLoader\#defineClass2 always throw an UnsupportedOperationException, if the class was not preloaded. 
+Native Image operates under a closed-world assumption. This assumption affects the semantics of the 
+Java® programming language as defined in the 
+[Java Language Specification](https://docs.oracle.com/javase/specs/jls/se21/html/index.html).
+We refer to this set of semantics as Native Image semantics, and is strictly equivalent to running
+Java under native restrictions.
 
-Define class
-\section{java.lang.Class / Reflection}
-Reflection
-JDK Behaviour under Native restrictions
+This document specifies the semantics of Native Image.
+It is organised according to the following sections:
+* [Reflection](#reflection)
+* [Resources](#resources)
+* [Serialization](#serialization)
+* [Dynamic Class Loading](#dynamic-class-loading)
+* [Misc.](#misc)
+
+# Reflection
+Under native restrictions, every reflectively-accessed element, that is `Class`, `Executable`, and `Field`, must 
+be included in the reflection metadata (see [Specifying Reflection Metadata in JSON](https://www.graalvm.org/latest/reference-manual/native-image/metadata/#specifying-reflection-metadata-in-json)
+for more details). If the element is not registered for reflection, then a `MissingReflectionRegistrationError` is thrown.
+
+### Reflectively-Accessing a Class
+Calling `java.lang.Class#forName` for a class or interface C requires C to be registered for reflection.
+If C is registered, and C cannot be located, then a `ClassNotFoundException` is thrown. 
+Superclasses of C are not automatically registered for reflection if C is registered.
+
+Creating a new array of component type C using `java.lang.reflect.Array#newInstance` requires C to be 
+registered for reflection.
+
+Instantiating C with the method `sun.misc.Unsafe#allocateInstance` requires C to be 
+registered for reflection and the flag `unsafeAllocated` must be set to true.
+
+### Reflectively-Accessing a Method
+Calling `java.lang.Class#getMethod` and `java.lang.Class#getDeclaredMethod` on a class or interface C for a method M, 
+with parameters of types T<sub>1</sub>...T<sub>n</sub>, require C, M and T<sub>1</sub>...T<sub>n</sub> to be registered 
+for reflection.
+If M is registered, but M cannot be found, then a `NoSuchMethodException` is thrown.
+
+Invoking the method M of C using `java.lang.reflect.Method#invoke` requires C to be registered for reflection
+and M to be registered as accessed in the reflection metadata.
+A `MissingReflectionRegistrationError` is thrown if C or M is not registered for reflection, or 
+if M is only registered as being queried.
+
+### Reflectively-Accessing a Constructor
+Calling `java.lang.Class#getConstructor` and `java.lang.Class#getDeclaredConstructor` on a class or interface C 
+for a constructor N with parameters of types T<sub>1</sub>...T<sub>n</sub>, require C, M and T<sub>1</sub>...T<sub>n</sub>
+to be registered for reflection,
+If N is registered, but N cannot be found, then a `NoSuchMethodException` is thrown.
+
+Creating a new instance of the class or interface C using the constructor N using
+`java.lang.reflect.Constructor#newInstance` requires C to be registered for reflection
+and N to be registered as accessed in the reflection metadata.
+A `MissingReflectionRegistrationError` is thrown if C or N is not registered for reflection, or
+if N is only registered as being queried.
+
+### Reflectively-Accessing a Field
+Calling `java.lang.Class#getField` and `java.lang.Class#getDeclaredField` on a class or interface C for a field F,
+require the C and F to be registered for reflection.
+If F is registered for reflection, but F cannot be found, then a `NoSuchFieldException` is thrown.
+
+### Reflectively-Accessing Member Classes and Interfaces
+When called on the class or interface C, the following methods require C to be registered for reflection with
+a specific flag set:
+* `java.lang.Class#getClasses` along with the flag `allPublicClasses` set to true
+* `java.lang.Class#getDeclaredClasses` along with the flag `allDeclaredClasses` set to true
+
+### Reflectively-Accessing the Methods of a Class
+When called on the class or interface C, the following methods require C to be registered for reflection with 
+a specific flag set:
+* `java.lang.Class#getMethods` along with the flag `allPublicMethods` set to true
+* `java.lang.Class#getDeclaredMethods` along with the flag `allDeclaredMethods` set to true
+
+### Reflectively-Accessing the Constructors of a Class
+When called on the class or interface C, the following methods require C to be registered for reflection with
+a specific flag set:
+* `java.lang.Class#getConstructors` along with the flag `allPublicMethods` set to true
+* `java.lang.Class#getDeclaredConstructors` along with the flag `allDeclaredMethods` set to true
+
+### Reflectively-Accessing the Fields of a Class
+When called on the class or interface C, the following methods require C to be registered for reflection with
+a specific flag set:
+* `java.lang.Class#getFields` along with the flag `allPublicFields` set to true
+* `java.lang.Class#getDeclaredFields` along with the flag `allDeclaredFields` set to true
+
+### Reflectively-Accessing the Permitted Subclasses of a Class
+Calling `java.lang.Class#getPermittedSubclasses` on a class or interface C requires C to be registered for reflection
+and its flag `allPermittedSubclasses` to be set to true.
+
+### Reflectively-Accessing the Nest Members of a Class
+Calling `java.lang.Class#getNestMembers` on a class or interface C requires C to be registered for reflection 
+and its flag `allNestMembers` to be set to true.
+
+### Reflectively-Accessing the Record Components of a Class
+Calling `java.lang.Class#getRecordComponents`on a class or interface C requires C to be registered for reflection
+and its flag `allRecordComponents` to be set to true.
+
+### Reflectively-Accessing the Signers of a Class
+Calling `java.lang.Class#getSigners`on a class or interface C requires C to be registered for reflection
+and its flag `allSigners` to be set to true.
+
+## Resources
+## Serialization
+
+## Dynamic Class Loading
+In this section, we explain the differences that occur during the process of dynamically loading
+a class or interface at runtime under native restrictions. 
+If not explicitly specified, then a call to a method refers to a call from the API, 
+rather than an internal calls.
+
+### Class and Interface Resolution
+Under native restrictions, the following rules apply: 
+* All classes from the classpath are linked before the execution of the program
+* All `invokedynamic` instructions are resolved at build time before program execution and replaced
+  with adequate bytecodes
+
+A class or interface dynamically loaded at runtime must be registered for reflection.
+
+If the element is not registered, then:
+* Calling any of the declared methods `loadClass` of `java.lang.ClassLoader` will result in a 
+`MissingReflectionRegistrationError`.
+* Calling any method of a user-defined class loader that depends on the methods `java.lang.ClassLoader#loadClass`, 
+`java.lang.ClassLoader#findLoadedClass` or `java.lang.ClassLoader#findBootstrapClassOrNull` 
+will result in a `MissingReflectionRegistrationError`.
+
+If the element is registered, then resolution proceeds as described in 
+[Section 5.4.3. of the JLS](https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.4.3).
+
+### Method Handle Resolution
+Unless they are used as part of the `invokedynamic` instruction, calls to the following methods 
+will result in an `UnsupportedOperationException`:
+* `java.lang.invoke.MethodHandles.Lookup#defineClass`
+* `java.lang.invoke.MethodHandles.Lookup#defineHiddenClass`
+* `java.lang.invoke.MethodHandles.Lookup#defineHiddenClassWithClassData`
+
+### java.lang.invoke.LambdaMetafactory
+Unless they are used as part of the `invokedynamic` instruction, calls to `java.lang.invoke.LambdaMetafactory#metafactory` 
+and `java.lang.invoke.LambdaMetafactory#altMetafactory` will result in an `UnsupportedOperationException`.
+
+
+## Unimplemented Features
+#### java.lang.SecurityManager
+The `java.lang.SecurityManager` behaves in the following ways:
+* `java.lang.System#getSecurityManager()` always returns `null`
+* `java.lang.System#setSecurityManager(SecurityManager sm)` returns without exception if `sm` is null. 
+It throws a `SecurityException` if the system property `java.security.manager` is not set to `disallow`, and an 
+`UnsupportedOperationException` otherwise.
+
+
 
 %%%%%%%%%%%%%%%%%%%%
-%\chapter{Evaluation}
+\chapter{Evaluation}
 %%%%%%%%%%%%%%%%%%%%
 
 % In the evaluation you convince the reader that your design works as intended.

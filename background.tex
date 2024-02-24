@@ -4,79 +4,46 @@
 % that must be resolved to understand your design and implementation.
 % This section is usually 3-5 pages.
 
-\section{Java Virtual Machine}
+\section{The Java Virtual Machine}
 Following the "write once, run anywhere" adage, the typical way of running a Java application is with a Java Virtual Machine~(JVM).
 The JVM offers an additional, target independent, layer of abstraction between implementation of 
-the Java Language Specifications~\cite{noauthor_java_nodate} and the operating system itself. 
-The JVM Specifications~\cite{noauthor_java_nodate-1} describe in details the requirements for a JVM. 
-This thesis focuses on a particular implementation, mainly Oracle's Java HotSpot~\cite{noauthor_hotspot_nodate}. 
-To achieve high performances, HotSpot relies on tiered compilation. It consists of an interpreter, and two JIT compilers: C1 and C2. 
-C1 compiles bytecode with a minimal time and space overhead, applying only a limited set of optimizations. C2, on the other 
-hand, is more aggressive and heavily optimizes the code, thus requiring more resources.
-The VM starts by interpreting the bytecodes and collects profiling information at the same time. When a part of the code is 
-deemed "hot" enough (from the collected profiles), C1 kicks in and starts compiling it. Once a threshold has been crossed C2 
-recompiles the same code into a more optimized form. If an optimization done by the compiler is proven wrong, the code is 
-deoptimized and and the process is restarted with interpretations.  
+the Java programming language~\cite{noauthor_java_nodate-2} and the operating system itself.
+The JVM, is responsible for interpreting and executing Java code. It consists in four key components: 
+the class loader, to load classes into memory, the runtime data area, to store program data (that is the method area, heap, and stack), the execution engine, which reads and executes bytecode instructions, and the garbage collector. The JVM Specifications~\cite{noauthor_java_nodate-1} describe in details the requirements for a JVM. 
+This thesis focuses on a particular implementation, mainly Oracle's Java HotSpot~\cite{noauthor_hotspot_nodate} and its Just-In-Time~(JIT) compiler. 
+HotSpot relies on tiered compilation to optimize code execution. It consists of an interpreter, and two JIT compilers: C1 and C2. 
+C1 compiles bytecode with a minimal time and space overhead, applying only a limited set of optimizations, while C2 employs a more aggressive optimization strategy, requiring more resources.
+The VM starts by interpreting the bytecodes to minimize startup time, and collects profiling information at the same time. Using these information, when method is deemed "hot" enough, C1 kicks in and starts compiling it. Once a threshold has been crossed C2 
+recompiles the same code into a more optimized form. If an optimization is proven wrong, the code is 
+deoptimized and the compiler reverts back to interpretations.  
 
 \section{GraalVM}
-GraalVM is a JDK developed at Oracle Labs.
+GraalVM is a runtime ecosystem developed by Oracle Labs, and consists in two main components: the Graal compiler, and Native Image.
+Graal is a JIT compiler that relies on multiple Phases, optimizations algorithms, to compile code 
+includes multiple optimization algorithms (called “Phases”), like aggressive inlining, polymorphic inlining
+ partial-escape-analysis optimization
+ leverages profile-guided optimization techniques to identify hotspots in the code
+complements or replaces the existing compilers (C2 in HotSpot).
+ supports polyglot compilation, allowing it to compile code written in multiple programming languages supported by GraalVM, such as JavaScript, Python, Ruby using intermediate representation (IR)
 
-GraalVM compiles your Java applications ahead of time into standalone binaries. These binaries are smaller, start up to 100x faster, provide peak performance with no warmup, and use less memory and CPU than applications running on a Java Virtual Machine (JVM).
+Native Image\cite{noauthor_native_nodate, noauthor_native_nodate-1, wimmer_initialize_2019} is a compilation technology that compiles Java programs ahead-of-time into native binaries. It operates under a closed-world assumption, this means that all Java classes must be known at image build time to be included in the image. 
+More precisely, every reflectively-accessed element, i.e, Class, Executable, and Field must be provided as reachability metadata. 
+At build time, point-to-analysis is leveraged iteratively such that only reachable code remains in the final image. Initialization code of the application can run at build time instead of at run time. This two processes
+reduce the startup time and memory footprint of the image.
 
-# Matthieu Bovel
-GraalVM is a runtime developed by Oracle Labs made of several interconnected components. The main ones are:
-• The Graal compiler is the core of the system. It consists of 1. an intermediate representation (IR) allowing
-speculative optimizations [3], 2. many optimization passes that can be applied to it and 3. the necessary
-machinery to lower it to x86 64-bit machine code. It can either integrate with HotSpot/OpenJDK, serving
-as a top-tier just-in-time compiler (replacing C2), or with native image for ahead-of-time compilation. We
-present the Graal IR in section 2.2.
-GraalVM Native Image [39] known internally as Substrate VM (SVM) is a framework that allows AOT
-compilation of JVM-based applications into executable images under closed-world assumption. This lowers
-the startup time.
 
-\cite{wimmer_initialize_2019}
- Some language platforms, such as Java VMs and .NET, are particularly slow at
-startup because they perform expensive code verification, class loading, bytecode interpretation,
-profiling, and dynamic compilation.
-
-novel approach for reducing the startup time and memory footprint:
-combining points-to analysis, application initialization at build time, heap snapshotting, and ahead-
-of-time (AOT) compilation. 
-Our approach is based on a closed-world assumption, i.e., all Java classes must be
-known and available at build time. At build time, the Java application and all its libraries (including
-the JDK) are processed by the points-to analysis to find the reachable program elements (classes,
-methods, and fields), so that only the necessary methods of Java classes are compiled.
-Initialization code of the application can run at build time instead of at run time. The application
-can control what is initialized and allocate Java objects to build complex data structures. These
-objects are available at run time using a so-called image heap, a pre-initialized part of the heap that
-is part of the executable and available immediately at application startup. The points-to analysis
-can make objects reachable in the image heap, and the snapshotting that builds the image heap can
-make new methods reachable for the points-to analysis. These steps are executed iteratively until a
-fixed point is reached.
-
-\subsection{Graal Compiler}
-\cite{wimmer_initialize_2019}
-The GraalVM compiler performs all standard optimizations such as method inlining, constant
-folding and arithmetic optimizations, loop optimizations; and optimizations that are especially
-effective for object-oriented Java code such as partial escape analysis
-\subsection{GraalVM Native Image}
-
-Native Image\cite{noauthor_native_nodate, noauthor_native_nodate-1} is a technology to compile Java code ahead-of-time to a binary – a native executable. A native executable includes only the code required at run time, that is the application classes, standard-library classes, the language runtime, and statically-linked native code from the JDK.
-An executable file produced by Native Image has several important advantages, in that it
-
-Uses a fraction of the resources required by the Java Virtual Machine, so is cheaper to run
-Starts in milliseconds
-Delivers peak performance immediately, with no warmup
-Can be packaged into a lightweight container image for fast and efficient deployment
-Presents a reduced attack surface
-Menttion Substrate VM and all the substitution
-
-During the image build, Native Image may execute user code. This code can have side effects, such as writing a value to a static field of a class. We say that this code is executed at build time. Values written to static fields by this code are saved in the image heap. Run time refers to code and state in the binary when it is executed.
+% # Matthieu Bovel
+% GraalVM is a runtime developed by Oracle Labs made of several interconnected components. The main ones are:
+% • The Graal compiler is the core of the system. It consists of 1. an intermediate representation (IR) allowing
+% speculative optimizations [3], 2. many optimization passes that can be applied to it and 3. the necessary
+% machinery to lower it to x86 64-bit machine code. It can either integrate with HotSpot/OpenJDK, serving
+% as a top-tier just-in-time compiler (replacing C2), or with native image for ahead-of-time compilation. We
+% present the Graal IR in section 2.2.
 
 \section{Java dynamic features}
-One of the cornerstone of the Java ecosystem is its dynamic feature. Jar, resources, proxy can be loaded, methods can be invoked at runtime, without the compiler having seen them before. 
+One of the cornerstone of the Java ecosystem is its dynamic features. Jar, resources, proxy can be loaded, methods can be invoked at runtime, without the compiler having seen them before. 
 
-\subsection{Class Loading, Linking and Initialization}
+\subsection{Dynamic class loading}
 Dynamic class loading as defined in Java requires the ability to handle a sequence of bytecodes representing a class unseen by the compiler before, at runtime allows to install software componenetsw at runtime (@see Dynamic Class Loading in the JavaTMVirtual Machine)
 
 Class 
@@ -84,7 +51,6 @@ talk about classloaders (mention delagation model -> useful for implementation),
 The defining loader of D is used to load and thereby create a class or interface denoted [JVM specs] 
 There are two kinds of class loaders: the bootstrap class loader supplied by the Java Virtual Machine, and user-defined class loaders. Every user-defined class loader is an instance of a subclass of the abstract class ClassLoader. Applications employ user-defined class loaders in order to extend the manner in which the Java Virtual Machine dynamically creates classes. User-defined class loaders can be used to create classes that originate from user-defined sources. For example, a class could be downloaded across a network, generated on the fly, or extracted from an encrypted file. 
 When the Java Virtual Machine asks a class loader L to locate a binary representation for a class or interface called N, L loads the class or interface C denoted by N. L may load C directly, by locating a binary representation and asking the Java Virtual Machine to derive and create C from the binary representation. Alternatively, L may load C indirectly, by delegating to another class loader which loads C directly or indirectly. 
-
 
 The Java Virtual Machine uses one of three procedures to create a class or interface C denoted by the name N in the run-time constant pool of a class or interface D (D triggered the class loading):
 
@@ -124,6 +90,9 @@ This specification allows an implementation flexibility as to when linking activ
     \caption{Enter Caption}
     \label{fig:enter-label}
 \end{figure}
+
+In Java, a class is initialized when it is first used. Native Image, can initialize them at build time, as a result using the class ata runtime does not re-trigger class initialization.
+
 \subsubsection{Java implementation}
 In Java, a class is initialized when it is first used.
 \subsubsection{Native Image implementation}
@@ -137,7 +106,7 @@ Only reachable elements are included in the final image. Once a native image is 
 
 \subsection{The invokedynamic instruction}
 ~\cite{rose_bytecodes_2009}
-Talk about the usage, Method Handles and how it required dynamic class loading
+Talk about the usage, Method Handles, CallSites and BootStrap methods and how it required dynamic class loading
 The JVM invokedynamic instruction was introduced in Java 7. It makes it possible to resolve method calls dynamically at runtime. method dispatch process by using a user-defined bootstrap method that computes the call target.
 The above example uses a LambdaMetafactory to create a CallSite that is used to invoke the target method. It uses a MethodHandles.Lookup to find the target method.
 The runtime approach is usually reflection-based and, consequently, inefficient. On the other hand, the compile-time solution is generally relying on code generation at compile-time. 
@@ -185,7 +154,7 @@ considered to be hot enough to be compiled, customized, uncustomized if needed, 
 Some are compiled at image built time (indy and trusted condy BSM), the other are forced interpreted
 
 
-\subsection{Reflection}
+\section{Reflection}
 
 \subsubsection{Java implementation}
 
