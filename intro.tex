@@ -1,0 +1,43 @@
+\chapter{Introduction}
+
+% The introduction is a longer writeup that gently eases the reader into your
+% thesis~\cite{dinesh20oakland}. Use the first paragraph to discuss the setting.
+% In the second paragraph you can introduce the main challenge that you see.
+% The third paragraph lists why related work is insufficient.
+% The fourth and fifth paragraphs discuss your approach and why it is needed.
+% The sixth paragraph will introduce your thesis statement. Think how you can
+% distill the essence of your thesis into a single sentence.
+% The seventh paragraph will highlight some of your results
+
+% Your core contribution should be in a subsection and use bullet points when possible. You can refer to sections where the main results are shown. However, the purpose of contributions is not to give an overview of the thesis text. Instead, the goal is to differentiate and crisply summarize the value of the thesis work. 
+
+% You may optionally follow the contribution list with a plan of the thesis, if this adds something over the table of content. 
+
+% This section is usually 3-5 pages.
+
+
+Paragraph 1: Setting
+1. NI binaries
+2. Closed world assumption
+3. Metadata
+
+Paragraph 2: Main challenge
+The changes to the JDK must remain minimal, it must still pass JCK. This require chirurgical changes and to pinpoint exactly the origin and the destination of each call. We need to somehow distinguish user runtime calls from the interpreter and build time from runtime initialisation. Writing specifications is not easy. 
+
+Paragraph 3: Why related work is insufficient
+This project is a strange beasts, we are porting an existing language to native restrictions. We are reducing the scope of what the compiler can do. What other works usually try to do is instead to extend that scope. Their goal is to add dynamic features to a static environment, essentially tackling the problem the other way around.    
+
+Paragraph 4-5: Approach and why it's needed
+Need for NI usability improvement: metadata agent problems, lack of specification, GDB debugging is hard (a real pain), long build time
+Getting the correct metadata is hard, and it takes a long time because building an image is long. Building an image is great, because the cost of aot compilation is amortized when the image can be reused. But debugging reflection in Native Image is slow, the checks for the inclusion of the reflectively-accessed elements are done at runtime. So we take advantage of the JVM for that.  
+We also want clearly written specifications for Native Image, this can only be done if a Java implementation exists. With specifications we also remove any behaviour that might be considered random for a user, e.g. some compiler optimisations might make the reflective access work and for another unknown reason crash. 
+
+Paragraph 6: Thesis statement -> "single" sentence
+We introduce a new Java mode that simulates Native Image behaviour by operating in a pseudo closed-world assumption, allowing us to rapidly get the correct metadata configuration and to write specifications.
+ enabling understanding and validation of the semantics through execution
+Add restriction on Java so that it can be statically analysed → write specs so that it’s easily transferable
+Everything is public and will eventually go into the NI stack. except the JCK suite (private) but only used to check if everything’s working
+Basically the restricted mode of Java will behave exactly like NI, and provide an external list (JSON) of the reachable elements
+
+Paragraph 7: Results
+The specifications exist.

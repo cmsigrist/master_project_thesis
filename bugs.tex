@@ -1,0 +1,105 @@
+GR-51281: Class.forName(c) unexpectedly works for sealed classes when subtypes of c are in the image heap
+-> reachability thing, no equivalent in JAva -> use an uncheckedClassForName instead.
+To reproduce run this with Native Image:
+
+native-image -H:ThrowMissingRegistrationErrors= --no-fallback Main
+
+sealed class A permits B {}
+final class B extends A {}
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Class.forName(hide("A")).getName();
+        hide(B.class);
+    }
+    public static <T> T hide(T a) {
+        System.out.println();
+        return a;
+    }
+}
+
+
+UnsupportedFeatureException instead of UnsupportedOperationException:
+- LambdaMetafactory: metafactory and altmetfactory
+- MethodHandles.Lookup: defineHiddenClass and defineHiddenClassWithClassData
+- Array#newInstance(Class<?>, int...)
+
+GR-51476: Array#newInstance:
+    public static <T> T opaque(T a) {
+        System.out.println();
+        return a;
+    }
+    public static void main(String[] args) throws Exception {
+        Array.newInstance(C.class, 5);
+    }
+    -> works
+
+    public static void main(String[] args) throws Exception {
+        Array.newInstance(opaque(C.class), 5);
+    }
+    -> without metadata
+    Fatal error: java.lang.IllegalArgumentException: Class C[] is instantiated reflectively but was never registered.Register the class by adding "unsafeAllocated" for the class in reflect-config.json.
+    at com.oracle.svm.core.graal.snippets.SubstrateAllocationSnippets.arrayHubErrorStub(SubstrateAllocationSnippets.java:351)
+    at java.io.PrintStream.println(PrintStream.java:1031)
+    at Main.hide(Main.java:17)
+    at Main.main(Main.java:14)
+    at java.lang.invoke.LambdaForm$DMH/sa346b79c.invokeStaticInit(LambdaForm$DMH:-1)
+
+    public static void main(String[] args) throws Exception {
+        Array.newInstance(C.class, 5, 5);
+    }
+    -> works
+
+    public static void main(String[] args) throws Exception {
+        Array.newInstance(opaque(C.class), 5, 5);
+    }
+    -> without metadata
+    Exception in thread "main" com.oracle.svm.core.jdk.UnsupportedFeatureError: Cannot allocate 2-dimensional array of C
+        at org.graalvm.nativeimage.builder/com.oracle.svm.core.util.VMError.unsupportedFeature(VMError.java:121)
+        at java.base@21.0.1/java.lang.reflect.Array.multiNewArray(Array.java:409)
+        at java.base@21.0.1/java.lang.reflect.Array.newInstance(Array.java:114)
+        at Main.main(Main.java:13)
+        at java.base@21.0.1/java.lang.invoke.LambdaForm$DMH/sa346b79c.invokeStaticInit(LambdaForm$DMH)
+
+
+Bootstrap method for `java.lang.StringTemplate` and `java.util.FormatProcessor` use lambda form, they should be included in the `indyBuildTimeAllowList` of `com.oracle.svm.core.bootstrap.BootstrapMethodConfiguration` to avoid the overhead of interpreting them at runtime.
+ Running `StringTemplate#combine` on Native Image takes an average of 155ms, running it on Hotspot takes 35ms:
+{code:java}
+public class Main {
+    static int a = 10;
+    static int b = 30;
+    static String c = "STemplate";
+
+    public static void main(String[] args) {
+        for (int j = 0; j < 10; j++) {
+            long time = System.nanoTime();
+            for (int i = 0; i < 10_000; i++) {
+                StringTemplate.combine(List.of(RAW."\{a}", RAW."\{b}", RAW."\{c}", RAW."\{c}"));
+            }
+            long time_end = System.nanoTime();
+            System.out.println("end: " + (time_end - time));
+        }
+    }
+}
+{code}
+The bootstrap method: `BootstrapMethod[indy, method:java.lang.runtime.TemplateRuntime.newStringTemplate(MethodHandles$Lookup, String, MethodType, String[])`
+
+For `FormatProcessor`, it takes 0.78ms on Native Image vs 0.35ms on HotSpot
+{code:java}
+public class Main {
+    static int a = 10;
+    static int b = 30;
+    static String c = "STemplate";
+
+    public static void main(String[] args) {
+        for (int j = 0; j < 10; j++) {
+            long time = System.nanoTime();
+            for (int i = 0; i < 10_000; i++) {
+                String str = FormatProcessor.FMT."Test String";
+            }
+            long time_end = System.nanoTime();
+            System.out.println("end: " + (time_end - time));
+        }
+    }
+}
+{code}
+The bootstrap method: `BootstrapMethod[indy, method:java.lang.runtime.TemplateRuntime.processStringTemplate(MethodHandles$Lookup, String, MethodType, MethodHandle, String[])`

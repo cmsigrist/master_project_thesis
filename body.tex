@@ -1,0 +1,188 @@
+%%%%%%%%%%%%%%%%
+%\chapter{Language Restrictions (Main Result: Theorems)}
+%%%%%%%%%%%%%%%%
+
+%State clearly definitions, assumptions, and proofs. The document will be archived for posterity and your name will be associated with any mistakes you make.
+
+%%%%%%%%%%%%%%%%
+\chapter{Design}
+%%%%%%%%%%%%%%%%
+% Introduce and discuss the design decisions that you made during this project.
+% Highlight why individual decisions are important and/or necessary. Discuss
+% how the design fits together.
+% Use as much as needed.
+
+porting a language to native restrictions
+A mode that crashes more than NI :D
+A mix of software archeology and software surgery.
+Find all the potential point of interests where a class might be loaded at runtime.
+And then introduce a minimal set of change in the JDK so that the correct checks can be made.
+We came with the idea of scope. By default the feature such as dynamic class loading is restricted, expcet in this scope.
+- a lot of effort is put into reducing and minimising this scope, finding the correct granularity such that without compromising
+the expected behaviour, the extending or diminishing this scope, would make it so that another scope would have to be opened at another point in the JDK, more of an empirical way of checking but see Appendix on graph of defineClass1
+that included tracing every call to defineClass and every way to define a class at runtime.
+\section{Security Managern}
+-> Throws a VMError fatal error, cannot be catched
+-> instead
+
+\section{Dynamic Class Loading}
+we want to avoid bytecode rewriting both complex and introduce some non trivial changes to the compiler
+2. defineClass must always throw an UnsupportedOperation Exception when called from the user code, and behave “normally” when the call is made from the JDK → challenge is to distinguish who made the call
+    1. can use SA to distinguish them
+    2. can do bytecode transformation to differentiate them
+
+design flow, when overloading the classloader, there's currently no way of knowing if a check has already been made for a class or not -> we check the metadata each time defineClass or findLoadedClass is called
+\section{Reflection}
+
+\section{Defining unexpected behavior}
+
+This one does not throw:
+public class Main {
+    public static void main(String[] args) throws Exception {
+        Class<?> cl = Class.forName("pfoo.PackageFoo");
+    }
+}
+
+But then this one does
+public class Main {
+    public static String hideLiterals(String s) {
+        System.out.println();
+        return s;
+    }
+    public static void main(String[] args) throws Exception {
+        Class<?> cl = Class.forName(hideLiterals("pfoo.PackageFoo"));
+    }
+}
+
+This one does not throw:
+package foo;
+public class Foo {
+    public String toString() {
+        return "Hello There " + message;
+    }
+}
+public static void testFindVirtual(MethodHandles.Lookup lookup) throws Throwable {
+    String methodName = "toString";
+    MethodHandle mh = lookup.findVirtual(Foo.class, hideLiterals(methodName), mt(String.class));
+}
+This one does
+package foo;
+public class FooLoader extends ClassLoader {
+    @Override
+    public Class<?> loadClass(String name) throws ClassNotFoundException {
+        return super.loadClass(name);
+    }
+}
+public static void testLoadClassBindCaller(MethodHandles.Lookup lookup) throws Throwable {
+    MethodHandle mh = lookup.findVirtual(FooLoader.class, "loadClass", mt(Class.class, String.class));
+}
+
+Always hide the parameters behind a method call that can't be inlined or it doesn't throw
+
+
+Defining class: Avoid bytecode rewriting -> create a loadClass wrapper instead, to differentiate users from the interpreters call
+Balance between what needs to be changed in Native Image, driving the specs with this Java mode, and using part of what is in Nativ eImage in Java mode (e.g. 
+MissingReflectionRegistrationError is still in progress in Native Image, but also using in Java).
+
+Building the agent after doing the defineClass -> back and forth
+SecurityManager was changed in Java moide, so had to change in NI, but other changes were made in NI so also had to propagate back the changes into the Java mode.
+etc.
+
+\section{JCK}
+Modifiy the native image vm, to optionally run with the java tracing agent instead of ni tracing agent. Then add stage to java-run instead of building and native-run
+To specify Native Image, need to prove it somehow works with java
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Implementation}
+%%%%%%%%%%%%%%%%%%%%%%%%
+% The implementation covers some of the implementation details of your project.
+% This is not intended to be a low level description of every line of code that
+% you wrote but covers the implementation aspects of the projects.
+% Please provide as stable as possible links to the implementation source code.
+
+LanguageRestrictions, Restrictions bundles and restrictions
+ThreadLocal, and inheritance to the rescue. White list who can do what
+Defining class: Avoid bytecode rewriting -> crate a loadClass wrapper instead, to differentiate users from the interpreters call
+
+\section{Class Loading}
+Native Image does not allow for runtime definition of classes that were not preloaded beforehand.
+To simulate this behavior, we introduce the wrapper method java.lang.ClassLoader#runtimeLoadClass. The only entry point for this private method is the interpreter. If not preloaded, then a class may be defined at runtime only if resolving the class or interface was required by one of the following instructions:
+anewarray, checkcast, getfield, getstatic, instanceof, invokedynamic, invokeinterface, invokespecial,
+invokestatic, invokevirtual, ldc, ldc\_w, multianewarray, new, putfield, and putstatic.
+The wrapper then dispatches the call to the method loadClass to the delegate class loader, as intended when running without restrictions.
+Runtime calls to the public method java.lang.ClassLoader#loadClass methods first checks if the class was preloaded (i.e. checking the inclusion of the class in the reflection metadata is sufficient to simulate Native Image behavior in this Java mode), before allowing it to be defined.
+
+\begin{lstlisting}[language=Java]
+private Class<?> runtimeLoadClass(String name) throws ClassNotFoundException {
+    try(ClassLoaderDefineClass unused = ClassLoaderLoaderDefineClass .setIsRuntimeDefineClassAllowed()) {
+        return this.loadClass(name);
+    }
+}
+\end{lstlisting}
+
+TODO add a simple running example: in one case creating an object new Foo() -> intepreter call
+in another loadong the class foo with and without preloading
+
+Do an upcall in native code in ClassLoader.c to check if the dynamicClassLoading is restricted or not and throw an UnsupportedOperationException is so.
+
+\section{Invoke dynamic}
+Talk about BMI, and how certain BMI are allowed and other not, as well as restricting the LambdaMetafactory
+Use lambda to surround and hide the checks
+\section{Reflection}
+
+\section{Tracing agent}
+
+\section{Technology Compatibility Kit}
+An experience in meta-programming.
+Gradle project designed to compile with an annotation processor. Parses all @Test annotation and write the json configuration for each test on the fly
+during compilation.
+Test harness run all test that implements the TestProvider class. Single test per file
+The reflection configurations are not on the classpath on purpose. There's a flag in NI and Java so that the path to the reflection configurations files can be specified.
+-> Build two native images, one with the reflection and another without. Run with Java with and without the reflection configuration path specified as a sys prop.
+
+-> the TCK is an implementation/represents of the specs of native image
+-> it's a simple random bug catcher, 
+\url{https://en.wikipedia.org/wiki/Programming_language_specification}
+Semantics
+
+Formulating a rigorous semantics of a large, complex, practical programming language is a daunting task even for experienced specialists, and the resulting specification can be difficult for anyone but experts to understand. The following are some of the ways in which programming language semantics can be described; all languages use at least one of these description methods, and some languages combine more than one[5]
+
+    Natural language: Description by human natural language.
+    Formal semantics: Description by mathematics.
+    Reference implementations: Description by computer program
+    Test suites: Description by examples of programs and their expected behaviors. While few language specifications start off in this form, the evolution of some language specifications has been influenced by the semantics of a test suite (e.g. in the past the specification of Ada has been modified to match the behavior of the Ada Conformity Assessment Test Suite).
+
+    
+%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{The Native Image Specifications: One Spec to Rule them All}
+%%%%%%%%%%%%%%%%%%%%%%%%
+Common specifications for both Native Image and the Java mode under native restrictions
+\section{java.lang.SecurityManager}
+Under the native restriction, the java.lang.SecurityManager behaves differently:
+\begin{enumerate}
+    \item java.lang.System\#getSecurityManager() always returns null.
+    \item java.lang.System\#setSecurityManager(SecurityManager sm) always throws an UnsupportedOperationException. 
+\end{enumerate}
+\section{java.lang.ClassLoader / Class Loading, Linking and Initialization}
+When running under native restrictions the following rules apply:
+\begin{enumerate}
+    \item The application class loader can not be overridden by the user.
+    \item All classes from the classpath are linked before the execution of the program.
+    \item All invokedynamic instructions are resolved in the step before program execution and replaced with adequate bytecodes. For example, all calls to java.lang.invoke.LambdaMetafactory are replaced with the calls to a pregenerated class.
+\end{enumerate}
+
+The native restrictions require that java.lang.ClassLoader\#defineClass0, java.lang.ClassLoader\#defineClass1, java.lang.ClassLoader\#defineClass2 always throw an UnsupportedOperationException, if the class was not preloaded. 
+
+Define class
+\section{java.lang.Class / Reflection}
+Reflection
+JDK Behaviour under Native restrictions
+
+%%%%%%%%%%%%%%%%%%%%
+%\chapter{Evaluation}
+%%%%%%%%%%%%%%%%%%%%
+
+% In the evaluation you convince the reader that your design works as intended.
+% Describe the evaluation setup, the designed experiments, and how the
+% experiments showcase the individual points you want to prove.
+

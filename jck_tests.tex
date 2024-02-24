@@ -1,0 +1,125 @@
+
+ For NI failing test
+ api/java_util/spi/LocaleServiceProvider/UtilSpiTest_2.html
+api/java_util/spi/LocaleServiceProvider/UtilSpiTest_4_1.html
+api/java_util/spi/LocaleServiceProvider/UtilSpiTest_1_2.html
+api/java_util/spi/LocaleServiceProvider/UtilSpiTest_1.html
+api/java_util/spi/LocaleServiceProvider/TextSpiTest_2_1.html
+api/java_util/spi/LocaleServiceProvider/TextSpiTest_5_1.html
+api/java_util/spi/LocaleServiceProvider/UtilSpiTest_3.html
+api/java_util/spi/LocaleServiceProvider/TextSpiTest_3.html
+api/java_util/spi/LocaleServiceProvider/TextSpiTest_3_1.html
+api/java_util/spi/LocaleServiceProvider/UtilSpiTest_5_1.html
+api/java_util/spi/LocaleServiceProvider/UtilSpiTest_5.html
+api/java_util/spi/LocaleServiceProvider/TextSpiTest_5.html
+api/java_util/spi/LocaleServiceProvider/UtilSpiTests.html
+api/java_util/spi/LocaleServiceProvider/TextSpiTest_4.html
+api/java_util/spi/LocaleServiceProvider/TextSpiTest_1_1.html
+api/java_util/spi/LocaleServiceProvider/TextSpiTests.html
+api/java_util/spi/LocaleServiceProvider/TextSpiTest_1.html
+api/java_util/spi/LocaleServiceProvider/TextSpiTest_4_1.html
+api/java_util/spi/LocaleServiceProvider/UtilSpiTest_3_1.html
+api/java_util/spi/LocaleServiceProvider/TextSpiTest_2.html
+api/java_util/spi/LocaleServiceProvider/TextSpiTest_2_2.html
+api/java_util/spi/LocaleServiceProvider/UtilSpiTest_1_1.html
+api/java_util/spi/LocaleServiceProvider/UtilSpiTest_4.html
+api/java_util/spi/LocaleServiceProvider/UtilSpiTest_2_2.html
+api/java_util/spi/LocaleServiceProvider/TextSpiTest_1_2.html
+api/java_nio/charset/spi/CharsetProvider/GeneralTests.html
+api/java_io/Serialization/ObjectInputStream/resolveProxyClass.html
+api/javax_management/remote/rmi/RMIConnectorServer/RMIConnectionSerialFilterTest.html
+api/javax_management/remote/rmi/RMIConnectorServer/RMIConnectorCredentialsFilterTest.html
+api/java_lang/ClassLoader/findLoadedClass.html
+api/java_lang/ClassLoader/LoadClass.html
+api/java_lang/constant/DynamicConstantDesc/MethodsTests.html
+api/java_lang/constant/DynamicConstantDesc/OfCanonical.html
+api/java_lang/constant/DynamicConstantDesc/Of.html
+api/java_lang/constant/DynamicConstantDesc/OfNamed.html
+api/java_lang/constant/DynamicCallSiteDesc/MethodsTests.html
+api/java_lang/constant/DynamicCallSiteDesc/Of.html
+api/java_lang/constant/ConstantDescs/OfNBootstrap.html
+api/java_lang/constant/ConstantDescs/Constants.html
+api/java_lang/constant/ClassDesc/ComponentType.html
+api/java_lang/constant/ClassDesc/ArrayType.html
+api/java_lang/constant/MethodHandleDesc/MethodsTests.html
+api/java_lang/constant/MethodHandleDesc/OfN.html
+api/java_lang/constant/ConstantDesc/ResolveConstantDesc.html
+api/java_lang/constant/MethodTypeDesc/MethodsTests.html
+api/java_lang/constant/Constable/DescribeConstable.html
+api/java_lang/Class/ArrayTypeUOE.html
+api/java_lang/Class/AccessFlagTests.html
+api/java_lang/Class/ForName_ModuleString.html
+api/java_lang/reflect/InvocationHandler/InvokeDefaultTests.html
+api/java_lang/invoke/MethodHandleProxies/MethodsTests.html
+vm/constantpool/loadingConstraints/loadingConstraints003/loadingConstraints00302/loadingConstraints00302.html
+vm/constantpool/loadingConstraints/loadingConstraints005/loadingConstraints00502m2/loadingConstraints00502m2.html
+vm/constantpool/loadingConstraints/loadingConstraints005/loadingConstraints00502m4/loadingConstraints00502m4.html
+vm/concepts/names/names007/names00701m1/names00701m1.html###############################################################################
+# Known agent problems
+###############################################################################
+api/java_lang/ProcessBuilder/start/StartInfoTests.html
+api/java_lang/ProcessHandle/CurrentTests.html
+api/java_lang/ProcessHandle/OfTests.html
+api/java_lang/Runtime/exec/Exec1InfoTests.html
+api/java_lang/Runtime/exec/Exec2InfoTests.html
+api/java_lang/Runtime/exec/Exec3InfoTests.html
+api/java_lang/Runtime/exec/Exec4InfoTests.html
+api/java_lang/Runtime/exec/Exec5InfoTests.html
+api/java_lang/Runtime/exec/ExecInfoTests.html
+4:54
+Those are the tests that fail in due to the missing registration errors.
+
+
+You can just run it all run-failures.jtx and see what fails.
+
+
+
+---------------------------------------------------------------------------------------------------
+Define Class Java agent failures:
+api/java_net/spi/TestSPI.html: TestSPI
+api/java_net/spi/error_resolver/TestErrorSPI.html: TestErrorSPI
+api/java_net/spi/exception_resolver/TestExceptionSPI.html: TestExceptionSPI
+api/java_net/spi/noreq_perm_resolver/TestSPI_SecurityException.html: TestSPI_SecurityException
+api/java_nio/file/spi/FileSystemProvider/installing_customProvider/ExistsAndReadAttributesTests.html: ExistsAndReadAttributesTests
+api/java_nio/file/spi/FileSystemProvider/installing_one/Test.html: Test
+api/java_nio/file/spi/FileSystemProvider/installing_several/Test.html: Test
+api/java_rmi/server/RemoteObject/Equals.html: Equals
+api/java_rmi/server/RemoteRef/GetRefClass.html: GetRefClass
+api/java_rmi/server/RemoteRef/RemoteEquals.html: RemoteEquals
+api/java_rmi/server/RemoteRef/RemoteHashCode.html: RemoteHashCode
+api/java_util/ResourceBundle/LoadBundleTests/LoadBundleTests.html: LoadBundleTests
+api/java_util/ResourceBundle/LoadBundleTests/LoadBundleTestsEUAsia.html: LoadBundleTestsEUAsia
+api/java_util/ResourceBundle/LoadBundleTests/LoadBundleXMLTests.html: LoadBundleXMLTests
+api/java_util/ServiceLoader/Load6/LoadTests.html: LoadTests
+api/javax_crypto/KeyGenerator/Init.html: Init
+api/javax_crypto/spec/SecretKeySpec/Ctor4GetTests.html: Ctor4GetTests
+api/javax_net/ssl/SSLSocket/startHandshake.html: startHandshake
+api/javax_sound/midi/spi/MidiDeviceProvider/MidiDeviceProviderTests.html: MidiDeviceProviderTests
+api/javax_sound/sampled/spi/MixerProvider/MixerProviderTests.html: MixerProviderTests
+api/org_w3c/dom/DOMConfiguration/Params.html: Params 
+
+all ni-agent failures of lang/EXEC and lang/PKGS, and none for vm
+
+
+Define Class MissingReflectionRegistration failures: in findLoadedClass (4 runs)
+native-image api/javax_swing/DefaultListSelectionModel/Additional.html : javax.swing.plaf.basic.BasicListUI
+api/javax_swing/JMenu/WinListener/all.html : javax.swing.plaf.basic.BasicMenuUI
+api/javax_swing/JTabbedPane/AccessibleJTabbedPane/Ctor.html : javax.swing.plaf.metal.MetalTabbedPaneUI
+api/javax_swing/JTextPane/JTPParamStringTests.html : javax.swing.plaf.basic.BasicTextPaneUI
+
+api/javax_swing/JFormattedTextField/AbstractFormatter/GetDocumentFilter.html : javax.swing.plaf.basic.BasicFormattedTextFieldUI
+api/javax_swing/JFormattedTextField/AbstractFormatter/StringToValue.html : javax.swing.plaf.basic.BasicFormattedTextFieldUI
+api/javax_swing/JFormattedTextField/process.html : javax.swing.plaf.basic.BasicFormattedTextFieldUI
+api/javax_swing/JMenu/AccessibleJMenu/Ctor.html : javax.swing.plaf.basic.BasicMenuUI
+
+api/javax_swing/JCheckBox/AccessibleJCheckBox/Ctor.html : javax.swing.plaf.metal.MetalCheckBoxUI
+api/javax_swing/JColorChooser/AccessibleJColorChooser/Ctor.html : javax.swing.plaf.basic.BasicColorChooserUI
+api/javax_swing/JColorChooser/fields.html : javax.swing.plaf.basic.BasicColorChooserUI
+api/javax_swing/JColorChooser/misc.html : javax.swing.plaf.basic.BasicColorChooserUI
+api/javax_swing/JViewport/AccessibleJViewport/Ctor.html : javax.swing.plaf.basic.BasicViewportUI
+
+api/javax_swing/JProgressBar/fields.html : javax.swing.plaf.metal.MetalProgressBarUI
+api/javax_swing/JProgressBar/setMax2.html : javax.swing.plaf.metal.MetalProgressBarUI
+api/javax_swing/JProgressBar/setXXX2.html : javax.swing.plaf.metal.MetalProgressBarUI
+api/javax_swing/JTextArea/JTextAreaParamStringTests.html : javax.swing.plaf.basic.BasicTextAreaUI
+api/javax_swing/tree/DefaultTreeCellEditor/EditorContainer/get.html : javax.swing.plaf.metal.MetalLabelUI

@@ -1,0 +1,87 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Misc.}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+The JVM can either interprets the Java bytecode or compile it into native code
+\section{Reachability metadata}
+
+The `native-image` tool performs [static analysis](\url{https://www.graalvm.org/latest/reference-manual/native-image/basics/#static-analysis-reachability-and-closed-world-assumption}) while building a native binary to determine those dynamic features, but it cannot always exhaustively predict all uses.
+To ensure inclusion of these elements into the native binary, you should provide **reachability metadata** (in further text referred as *metadata*) to the `native-image` builder. 
+Providing the builder with reachability metadata also ensures seamless compatibility with third-party libraries at runtime.
+
+When you use GraalVM Native Image to build a native executable it only includes *the elements* reachable from your application entry point, its dependent libraries, and the JDK classes discovered through static analysis. However, the reachability of some elements (such as classes, methods, or fields) may not be discoverable due to Java’s dynamic features including reflection, resource access, dynamic proxies, and serialization. If an element is not reachable, it is not included in the generated executable and this can lead to run time failures.
+
+Metadata provided in the repository is not aimed solely at Native Image, although Native Image is the first use case. Reachability metadata can serve other use cases where knowing all of the used elements ahead of time is necessary (that is, a closed world is required).
+
+\subsection{Computing Reflection Metadata in code}
+
+Some reflection methods are treated specially and are evaluated at build time when given constant arguments.
+
+Below are examples of calls that are replaced with the corresponding metadata element:
+
+```java
+Class.forName("java.lang.Integer")
+Class.forName("java.lang.Integer", true, ClassLoader.getSystemClassLoader())
+Class.forName("java.lang.Integer").getMethod("equals", Object.class)
+Integer.class.getDeclaredMethod("bitCount", int.class)
+Integer.class.getConstructor(String.class)
+Integer.class.getDeclaredConstructor(int.class)
+Integer.class.getField("MAX\_VALUE")
+Integer.class.getDeclaredField("value")
+```
+
+\subsection{Taming build time initialization}
+
+This document describes a mechanism for computing [reachability metadata](\url{https://www.graalvm.org/22.2/reference-manual/native-image/metadata/}) in user code at build time. We focus on computing reachability metadata in the user code as it is easier to maintain compared to externally specified metadata (e.g., in JSON files).
+
+\subsubsection{Modifications to the Current Native Image Build-Time Computation}
+
+The new proposal would leave the functionality of `--initialize-at-build-time` in Native Image.
+This feature should be used for legacy libraries and libraries that 
+should do not want to adopt the change for the foreseeable future.
+
+The inlining before analysis would remain as is, however 
+it would not be allowed to constant-fold reflective calls for purposes 
+of computing reachability metadata.
+All the metadata computation must be complete before inlining before 
+analysis is done.
+
+All intrinsics for `Class#getField`, `Class#getMethod`, etc., would be implemented in terms of `@Propagate` and `@Precompute`.
+
+\subsubsection{Ensuring Correctness During Compilation}
+
+To make the verification easier for end users, we would implement a `javac` plugin for verifying that `@Precompute` and `@Pure` satisfy all the requirements. This plugin would be added automatically by the native build tools to all Java computations.
+
+\subsection{Appendix}
+
+\subsubsection{Java reflection}
+Java reflection is useful because it supports dynamic retrieval of information about classes and data structures by name, and allows for their manipulation within an executing Java program.
+
+Example
+
+For an invocation of:
+
+```java
+java DumpMethods java.util.Stack
+```
+
+The method names of class `java.util.Stack` are listed, along with their fully qualified parameter and return types.
+
+This program loads the specified class using `class.forName`, and then calls `getDeclaredMethods` to retrieve the list of methods defined in the class. `java.lang.reflect.Method` is a class representing a single class method.
+
+
+In Java, class loading is a part of the overall process of class loading, linking, and initialization, collectively known as class loading.
+
+Here's a breakdown of these terms:
+
+\section{Class Loading}
+
+Loading is the process of bringing a class file into the JVM.
+It involves reading the binary data (class file) and creating a Class object in the JVM memory.
+Loading is triggered when the class is first referenced in the code.
+
+Linking is the process of combining the binary representations of a class or interface into the runtime state of the JVM.
+It includes three sub-processes: verification, preparation, and resolution.
+Linking is often performed just before a class is initialized. -> calls defineClass
+
+Initialization is the process of executing the static initializers and initializing static fields of a class.
+It occurs when a class is first used, either through the creation of an instance or by accessing a static member.
