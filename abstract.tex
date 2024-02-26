@@ -1,6 +1,4 @@
 \begin{abstract}
-% The \sysname tool enables humans as well as human-level AI to turn their logical constraints into time and energy efficient code.
-% 
 % The abstract serves as an executive summary of your project.
 % Your abstract should cover at least the following topics, 1-2 sentences for
 % each: what area you are in, the problem you focus on, why existing work is
@@ -17,6 +15,7 @@ The objective of this project is to allow users to compute metadata with a quick
 introducing a new mode to the JDK, so that it operates under the closed-world assumption and behaves
 exactly like Native Image.
 
+%% TODO check on the bytecode-to-bytecode partial evaluator might have to move to future work
 We modify all reﬂective JDK features to operate under a closed-world assumption by checking the
 reachability metadata to determine if the reﬂectively accessed element is in the closed world. To pre-compute the reﬂectively-accessed elements we implement a bytecode-to-bytecode partial evaluator that transforms classes before they are loaded and extracts reachability metadata from them. Finally, implementing the Java mode is a mean to drive Native Image specifications. It enables us to clearly state what the expected behaviour is for all reflective accesses, and know which unexpected behaviours emerge due to compiler optimisations.   
 \end{abstract}

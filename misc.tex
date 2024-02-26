@@ -12,22 +12,6 @@ When you use GraalVM Native Image to build a native executable it only includes 
 
 Metadata provided in the repository is not aimed solely at Native Image, although Native Image is the first use case. Reachability metadata can serve other use cases where knowing all of the used elements ahead of time is necessary (that is, a closed world is required).
 
-\subsection{Computing Reflection Metadata in code}
-
-Some reflection methods are treated specially and are evaluated at build time when given constant arguments.
-
-Below are examples of calls that are replaced with the corresponding metadata element:
-
-```java
-Class.forName("java.lang.Integer")
-Class.forName("java.lang.Integer", true, ClassLoader.getSystemClassLoader())
-Class.forName("java.lang.Integer").getMethod("equals", Object.class)
-Integer.class.getDeclaredMethod("bitCount", int.class)
-Integer.class.getConstructor(String.class)
-Integer.class.getDeclaredConstructor(int.class)
-Integer.class.getField("MAX\_VALUE")
-Integer.class.getDeclaredField("value")
-```
 
 \subsection{Taming build time initialization}
 

@@ -4,40 +4,117 @@
 
 %State clearly definitions, assumptions, and proofs. The document will be archived for posterity and your name will be associated with any mistakes you make.
 
-%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Design}
-%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Introduce and discuss the design decisions that you made during this project.
 % Highlight why individual decisions are important and/or necessary. Discuss
 % how the design fits together.
 % Use as much as needed.
 
-porting a language to native restrictions
-A mode that crashes more than NI :D
-A mix of software archeology and software surgery.
-Find all the potential point of interests where a class might be loaded at runtime.
-And then introduce a minimal set of change in the JDK so that the correct checks can be made.
-We came with the idea of scope. By default the feature such as dynamic class loading is restricted, expcet in this scope.
-- a lot of effort is put into reducing and minimising this scope, finding the correct granularity such that without compromising
-the expected behaviour, the extending or diminishing this scope, would make it so that another scope would have to be opened at another point in the JDK, more of an empirical way of checking but see Appendix on graph of defineClass1
-that included tracing every call to defineClass and every way to define a class at runtime.
-\section{Security Managern}
--> Throws a VMError fatal error, cannot be catched
--> instead
+The goal is to port Java to native restrictions with a minimal set of changes to the JDK. We want Java to behave exactly like Native Image, and crash for the exact same reasons that Native Image does. 
+This section explains how semantic changes can be modeled through the concept of (1) native restrictions, (2) how defining scopes in the JDK enables us to express these changes, and (3) how we can improve Native Image usability by facilitating debugging of user code and identifying unexpected behaviour in Native Image by simulating it in Java.
 
--> introduce the concept of scope where native restrictions are ignored
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Native Restrictions}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+We introduce the concept of native restrictions to represent the set of semantics that Java is running with. These restrictions modify the way dynamic class loading, reflection and the \verb|SecurityManager| behave at runtime. Each feature can be individually selected to run under native restrictions, it behaves like in Native Image, or not, it behaves like Java.
+At the two end of the spectrum of the native restrictions, we have that: (1) when no restrictions are applied, Java behaves according to the Java Language Specification, (2) when all the restrictions are applied, Java behaves according to the Native Image Semantics, as presented in Section~\ref{native_image_specs}. 
 
-\section{Dynamic Class Loading}
-we want to avoid bytecode rewriting both complex and introduce some non trivial changes to the compiler
-2. defineClass must always throw an UnsupportedOperation Exception when called from the user code, and behave “normally” when the call is made from the JDK → challenge is to distinguish who made the call
-    1. can use SA to distinguish them
-    2. can do bytecode transformation to differentiate them
+At runtime, we perform checks for an expected behaviour depending on whether the feature is running under native restrictions or not, thus we effectively change the semantic of Java.
+Moreover, proving that Java can behave like Native Image, while remaining compliant with the Java Compatibility Kit~\cite{noauthor_gaining_nodate}~(JCK), enables us to drive the specification of Native Image.
 
-design flow, when overloading the classloader, there's currently no way of knowing if a check has already been made for a class or not -> we check the metadata each time defineClass or findLoadedClass is called
-\section{Reflection}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Native Restrictions Scopes}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+The challenge in designing the semantics changes is that they require us to differentiate runtime behavior from build time behavior - which is a concept that does not exist in Java - but also JVM calls from user calls on public methods.
 
-\section{Defining unexpected behavior}
+One possible approach relies on bytecode transformation, but these transformations are both complex to implement and introduce non-trivial changes to the compiler. 
+Instead, we use the notion of scopes to delimit regions of codes where the native restrictions are disabled. This regions are explicitly delimited such that only code for the JVM is executed, arbitrary user-code remains restricted.
+More formally, let \verb|c| be a method of the class or interface \verb|C|, and assume the existence of a mechanism to open scopes. As shown in Figure~\ref{fig:scopes}, \verb|c| opens a scope S, invokes a method \verb|a| of the class or interface \verb|A|, and closes S when it returns form \verb|a|.
+The method \verb|a| invokes a method \verb|b| of the class or interface \verb|B| that performs some native restrictions checks.
+Then if \verb|c| is invoked, the restrictions checks in \verb|b| will be ignored, as they are included in S.
+If \verb|a| is invoked by another caller than \verb|C.c|, the restrictions checks in \verb|b| will be performed.
 
+\begin{figure}[ht]
+    \centering
+\begin{lstlisting}[language=Java]
+class A {
+    static void a() {
+        B.b(); 
+    }
+} 
+class B {
+    static void b() {
+        // check native restrictions
+    }
+}
+class C {
+    static void c() {
+       ...
+       // start of scope S
+       A.a();
+       // end of scope S
+       ...
+    }
+}
+\end{lstlisting}
+    \caption{Using scopes}
+    \label{fig:scopes}
+\end{figure}
+
+
+In the following subsections we show in more details how these scopes were chosen for each feature, that they are correct according to Native Image semantics, and that the granularity of the scopes is optimal in the sense that delimiting another region would mean introducing more changes to the JDK for the design to remain correct.
+
+% defineClass must always throw an UnsupportedOperation Exception when called from the user code, and behave “normally” when the call is made from the JDK → challenge is to distinguish who made the call
+%     1. can use SA to distinguish them
+%     2. can do bytecode transformation to differentiate them
+    
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Dynamic Class Loading}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+As mentioned in the background section, Native Image does not generally support dynamic class loading. The requirement under native restrictions are that loading a class at runtime without having registered it for reflection will result in a \verb|MissingReflectionRegistrationError| from \verb|java.lang.ClassLoader#defineClass1|, loading a class using a \verb|java.lang.invoke.MethodHandles.Lookup| invokes \verb|java.lang.ClassLoader#defineClass0| which will always throw an \verb|UnsupportedOperationException|.
+
+The method \verb|java.lang.ClassLoader#loadClass| can be called from the JVM after a class has been linked, or directly from user-code. In the former case we do not want an exception to be thrown, in the latter case, we want to throw an exception to prevent user from defining an arbitrary class or interface at runtime.
+% probably need to put that in the implementaiton ? the wrapper and everything
+To differentiate these paths, we introduce the wrapper method \verb|java.lang.ClassLoader#runtimeLoadClass|. The only entry point for this private method is the JVM, as shown in Figure~\ref{fig:load_class}.
+Invoking \verb|runtimeLoadClass| opens a scope, which remains open until it returns from \verb|defineClass1|.
+Note that calling \verb|loadClass| directly does not open the scope.
+
+If not preloaded, then a class may be defined at runtime only if resolving the class or interface was required by one of the following instructions:
+anewarray, checkcast, getfield, getstatic, instanceof, invokedynamic, invokeinterface, invokespecial,
+invokestatic, invokevirtual, ldc, ldc\_w, multianewarray, new, putfield, and putstatic.
+The wrapper then dispatches the call to the method loadClass to the delegate class loader, as intended when running without restrictions.
+Runtime calls to the public method java.lang.ClassLoader#loadClass methods first checks if the class was preloaded (i.e. checking the inclusion of the class in the reflection metadata is sufficient to simulate Native Image behavior in this Java mode), before allowing it to be defined.
+
+\begin{figure}
+    \centering
+    \includegraphics[scale=0.55]{resources/loadClassWithLegend.png}
+    \caption{Caption}
+    \label{fig:load_class}
+\end{figure}
+
+
+design flaw, when overloading the classloader, there's currently no way of knowing if a check has already been made for a class or not -> we check the metadata each time defineClass or findLoadedClass is called
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Reflection}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Improving Usability}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Say Goodbye to GDB}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Native Image offers a tracing agent to automatically collect the reachability metadata required for an application
+A new workflow for building an image.
+-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Defining unexpected behavior}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Put list of bugs here!
 This one does not throw:
 public class Main {
     public static void main(String[] args) throws Exception {
@@ -90,23 +167,37 @@ Building the agent after doing the defineClass -> back and forth
 SecurityManager was changed in Java moide, so had to change in NI, but other changes were made in NI so also had to propagate back the changes into the Java mode.
 etc.
 
-\section{JCK}
-Modifiy the native image vm, to optionally run with the java tracing agent instead of ni tracing agent. Then add stage to java-run instead of building and native-run
-To specify Native Image, need to prove it somehow works with java
 
-%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Implementation}
-%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % The implementation covers some of the implementation details of your project.
 % This is not intended to be a low level description of every line of code that
 % you wrote but covers the implementation aspects of the projects.
 % Please provide as stable as possible links to the implementation source code.
-
+A mix of software archeology and software surgery.
 LanguageRestrictions, Restrictions bundles and restrictions
 ThreadLocal, and inheritance to the rescue. White list who can do what
 Defining class: Avoid bytecode rewriting -> crate a loadClass wrapper instead, to differentiate users from the interpreters call
 
-\section{Class Loading}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{LanguageRestrictionManager}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Native Restrictions Scopes}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Concretely scopes are thread locals of integers, basically counters!
+Each time a region is entered, the counter is incremented, and each time a region is left, the counter is decremented. This account for recursive calls (they either all get disabled or all enabled).
+
+To avoid memory leak, the thread local is instantiated in a try-catch clause, and implement the autocloasable interface.
+To minimize changes made to the JDK, the try catch clause is hidden in a Lambda whenever possible (i.e. StackOverflow can happen when the region is located in part of the JDK used to bootstrap lambdas).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Class Loader}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Native Image does not allow for runtime definition of classes that were not preloaded beforehand.
 To simulate this behavior, we introduce the wrapper method java.lang.ClassLoader#runtimeLoadClass. The only entry point for this private method is the interpreter. If not preloaded, then a class may be defined at runtime only if resolving the class or interface was required by one of the following instructions:
 anewarray, checkcast, getfield, getstatic, instanceof, invokedynamic, invokeinterface, invokespecial,
@@ -127,16 +218,40 @@ in another loadong the class foo with and without preloading
 
 Do an upcall in native code in ClassLoader.c to check if the dynamicClassLoading is restricted or not and throw an UnsupportedOperationException is so.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Invoke dynamic}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Talk about BMI, and how certain BMI are allowed and other not, as well as restricting the LambdaMetafactory
 Use lambda to surround and hide the checks
-\section{Reflection}
-don't want to trace internal classes!
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Reflection}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+don't want to trace internal classes!
+> first implementation of the restrict for LambdaMetafactory and the BMI was too restrictive,
+i.e. only allowed LambdaMEtfactory all other bsmethod where restricted, which is not correct ->
+checked NI and try to get as close as possible, it executes some safe bsmethods at build time and
+the rest is interpreted at runtime -> basically only lambda and other System class are allowed in
+Java mode, if the user tries to do something strange (assuming they haven’t overriden the App class
+loader), then either the call site must have been preloaded before, or it will throw when it tries to
+resolve the method name
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Tracing agent}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 Have everything in one place -> simple work flow run the agent test with java under native restrictions adn then build the image -> don't need to build graalvm before
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Unimplemented feature: Security Manager}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+-> Throws a VMError fatal error, cannot be catched
+-> instead
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Technology Compatibility Kit}
-An experience in meta-programming.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+An experience in meta-programming. 
 Gradle project designed to compile with an annotation processor. Parses all @Test annotation and write the json configuration for each test on the fly
 during compilation.
 Test harness run all test that implements the TestProvider class. Single test per file
@@ -155,9 +270,10 @@ Formulating a rigorous semantics of a large, complex, practical programming lang
     Reference implementations: Description by computer program
     Test suites: Description by examples of programs and their expected behaviors. While few language specifications start off in this form, the evolution of some language specifications has been influenced by the semantics of a test suite (e.g. in the past the specification of Ada has been modified to match the behavior of the Ada Conformity Assessment Test Suite).
 
-%%%%%%%%%%%%%%%%%%%%%%%%
-\chapter{The Native Image Specifications: One Spec to Rule them All}
-%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{The Native Image Specification: One Spec to Rule them All}\label{native_image_specs}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% TODO add snippets of code to show how it differes from normal Java
 # Native Image Semantics
 
 Native Image operates under a closed-world assumption. This assumption affects the semantics of the 
@@ -307,9 +423,9 @@ It throws a `SecurityException` if the system property `java.security.manager` i
 
 
 
-%%%%%%%%%%%%%%%%%%%%
-\chapter{Evaluation}
-%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \chapter{Evaluation}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % In the evaluation you convince the reader that your design works as intended.
 % Describe the evaluation setup, the designed experiments, and how the

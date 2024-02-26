@@ -2,26 +2,101 @@ GR-51281: Class.forName(c) unexpectedly works for sealed classes when subtypes o
 -> reachability thing, no equivalent in JAva -> use an uncheckedClassForName instead.
 To reproduce run this with Native Image:
 
-native-image -H:ThrowMissingRegistrationErrors= --no-fallback Main
+sealed class A permits B {
+}
 
-sealed class A permits B {}
-final class B extends A {}
-public class Main {
-    public static void main(String[] args) throws Exception {
-        Class.forName(hide("A")).getName();
-        hide(B.class);
-    }
-    public static <T> T hide(T a) {
-        System.out.println();
-        return a;
+final class B extends A {
+}
+@Test(
+        reflectionMetadata =
+                """
+                [{
+                    "name": "org.graalvm.nativeimage.tck.java.lang.ClassTest$A"
+                }]
+                """,
+        expectedNoRegistrationException = MISSING_REFLECTION_REGISTRATION_ERROR
+)
+@NativeImageTCKDeviation(ticketNumber = "GR-51281")
+public static void sealedForName() throws Exception {
+    Class<?> result = Class.forName(opaque("org.graalvm.nativeimage.tck.java.lang.ClassTest$A"));
+    opaque(B.class);
+    assertEquals(opaque(A.class), result);
+}
+
+@Test(
+        reflectionMetadata =
+                """
+                [{
+                    "name": "org.graalvm.nativeimage.tck.java.lang.tck.ForNameInheritanceTestSubclass"
+                }]
+                """,
+        expectedNoRegistrationException = MISSING_REFLECTION_REGISTRATION_ERROR
+)
+@NativeImageTCKDeviation(ticketNumber = "GR-52035")
+public static void forNameInheritance() throws Exception {
+    Class<?> result1 = Class.forName(opaque("org.graalvm.nativeimage.tck.java.lang.tck.ForNameInheritanceTestSubclass"));
+    assertEquals(opaque(ForNameInheritanceTestSubclass.class), result1);
+    try {
+        Class.forName(opaque("org.graalvm.nativeimage.tck.java.lang.tck.ForNameInheritanceTestClass"));
+        assertFails("Expected " + MISSING_REFLECTION_REGISTRATION_ERROR.getExceptionName() + " to be thrown for superclass.");
+    } catch (Throwable e) {
+        if (e instanceof AssertionError) {
+            throw e;
+        }
+        assertThrows(MISSING_REFLECTION_REGISTRATION_ERROR, e);
     }
 }
 
 
 UnsupportedFeatureException instead of UnsupportedOperationException:
 - LambdaMetafactory: metafactory and altmetfactory
+@NativeImageTCKDeviation(ticketNumber = "GR-51894")
+public static void metafactory() throws Exception {
+    String expectedMessage = isNativeImage()
+            ? "Defining hidden classes at runtime is not supported."
+            : "ClassLoader#defineClass() is not supported with native restrictions.";
+    try {
+        MethodHandles.Lookup lookup = MethodHandles.lookup();
+        MethodHandle implMethod = lookup.findVirtual(opaque(MetafactoryTestClass.class), "getString", MethodType.methodType(String.class));
+        LambdaMetafactory.metafactory(lookup, "get", MethodType.methodType(StringFactory.class, MetafactoryTestClass.class), MethodType.methodType(String.class),
+                implMethod, MethodType.methodType(String.class));
+        assertFails("Expected UnsupportedOperationException to be thrown.");
+    } catch (UnsupportedOperationException e) {
+        assertEquals(expectedMessage, e.getMessage());
+    } catch (InternalError e) {
+        assertThrows(UNSUPPORTED_OPERATION_EXCEPTION, e.getCause());
+        assertEquals(expectedMessage, e.getCause().getMessage());
+    }
+}
 - MethodHandles.Lookup: defineHiddenClass and defineHiddenClassWithClassData
+@Test
+@NativeImageTCKDeviation(ticketNumber = "GR-51894")
+public static void defineHiddenClass() throws Exception {
+    try {
+        MethodHandles.lookup().defineHiddenClass(generate("org/graalvm/nativeimage/tck/java/lang/invoke/MethodHandlesDefineHiddenClassTestClass.class"), true);
+        assertFails("Expected UnsupportedOperationException to be thrown.");
+    } catch (UnsupportedOperationException e) {
+        String expectedMessage = isNativeImage()
+                ? "Defining new classes at runtime is not supported"
+                : "ClassLoader#defineClass() is not supported with native restrictions.";
+        assertEquals(expectedMessage, e.getMessage());
+    }
+}
 - Array#newInstance(Class<?>, int...)
+@Test(
+        reflectionMetadata =
+                """
+                [{
+                    "name":"[[Lorg.graalvm.nativeimage.tck.java.lang.reflect.tck.ArrayTestClass;"
+                }]
+                """,
+        expectedNoRegistrationException = MISSING_REFLECTION_REGISTRATION_ERROR
+)
+@NativeImageTCKDeviation(ticketNumber = "GR-51476")
+public static void newInstanceMultiDimension() throws Exception {
+    Class<?> result = Array.newInstance(opaque(ArrayTestClass.class), 1, 1).getClass();
+    assertEquals(opaque(ArrayTestClass[][].class), result);
+}
 
 GR-51476: Array#newInstance:
     public static <T> T opaque(T a) {
@@ -63,7 +138,7 @@ GR-51476: Array#newInstance:
 
 Bootstrap method for `java.lang.StringTemplate` and `java.util.FormatProcessor` use lambda form, they should be included in the `indyBuildTimeAllowList` of `com.oracle.svm.core.bootstrap.BootstrapMethodConfiguration` to avoid the overhead of interpreting them at runtime.
  Running `StringTemplate#combine` on Native Image takes an average of 155ms, running it on Hotspot takes 35ms:
-{code:java}
+
 public class Main {
     static int a = 10;
     static int b = 30;
@@ -80,7 +155,6 @@ public class Main {
         }
     }
 }
-{code}
 The bootstrap method: `BootstrapMethod[indy, method:java.lang.runtime.TemplateRuntime.newStringTemplate(MethodHandles$Lookup, String, MethodType, String[])`
 
 For `FormatProcessor`, it takes 0.78ms on Native Image vs 0.35ms on HotSpot
@@ -103,3 +177,4 @@ public class Main {
 }
 {code}
 The bootstrap method: `BootstrapMethod[indy, method:java.lang.runtime.TemplateRuntime.processStringTemplate(MethodHandles$Lookup, String, MethodType, MethodHandle, String[])`
+

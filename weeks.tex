@@ -469,9 +469,6 @@ How to write the project into a master thesis:
 - a good master student should be able to understand what it's about
 - emphasis on background, what is Graal, native image, vs normal JVM plus all reflective stuff
 - specs can be in the body of the thesis, with some examples on how it differs from Java - well chosen snippets of code, and derived consequence
-- specs can be in the body of the thesis, with some examples on how it differs from Java - well chosen snippets of code, and derived consequence
-- specs can be in the body of the thesis, with some examples on how it differs from Java - well chosen snippets of code, and derived consequence
-- specs can be in the body of the thesis, with some examples on how it differs from Java - well chosen snippets of code, and derived consequence
 - emphasis on related work: examples .NET aot compiler ask Bernard? Less dynamic than Java, i.e no dynamic class loading is supported. Scala Native Work, ask Denis ?
 
 Start by writing outline and abstract, can be redone and redone quickly
@@ -918,22 +915,6 @@ MethodHandleImpl#makeInjectedInvoker called not only from Bind#bindCaller but ev
 
 Reflection
 Must disable all MemberName resolution reflection check for MethodHandles, Lambdas, InjectedInvokers, LambdaNames, 
-In SharedSecrets use Class.forName to get jdk classes
-In Arrays -> disable copyOf reflection check (used all over the place by the LambdaNames, check if there's an internal methods where it could be disabled) ?
-            at java.base/java.util.Arrays.copyOf(Arrays.java:3514)
-        at java.base/java.util.Arrays.copyOf(Arrays.java:3482)
-Disable for ServiceLoader -> there's already a service file
-
-/home/capucine/graalvm/labsjdk-ce-21/src/java.base/share/classes/java/lang/invoke/DirectMethodHandle.java:876
-/home/capucine/graalvm/labsjdk-ce-21/src/java.base/share/classes/java/lang/invoke/InvokerBytecodeGenerator.java:651
-In LambdaFormBuffer all Arrays.copyOf: /home/capucine/graalvm/labsjdk-ce-21/src/java.base/share/classes/java/lang/invoke/LambdaFormBuffer.java:70, /home/capucine/graalvm/labsjdk-ce-21/src/java.base/share/classes/java/lang/invoke/LambdaFormBuffer.java:140, /home/capucine/graalvm/labsjdk-ce-21/src/java.base/share/classes/java/lang/invoke/LambdaFormBuffer.java:230
-
-/home/capucine/graalvm/labsjdk-ce-21/src/java.base/share/classes/java/lang/invoke/MethodHandleImpl.java:236:             // TODO skip if arrayClass.getComponentType().isPrimitive;
-/home/capucine/graalvm/labsjdk-ce-21/src/java.base/share/classes/jdk/internal/restrict/reflect/ReflectiveAccessChecksImpl.java:343 // TODO can be removed by adding check in java.lang.invoke.MethodHandleNatives.varHandleOperationLinkerMethod l:589    
-/home/capucine/graalvm/labsjdk-ce-21/src/java.base/share/classes/jdk/internal/restrict/reflect/ReflectiveAccessChecksImpl.java:388  // TODO add thread local java/lang/invoke/LambdaForm.java:1743
-/home/capucine/graalvm/labsjdk-ce-21/src/java.base/share/classes/jdk/internal/restrict/reflect/ReflectiveAccessChecksImpl.java:409 // TODO java/lang/invoke/MethodHandleImpl.java:240
-
-Reflection in SharedSecrets -> MethodHAndleImpl is defined with Class.forName and called -> disable resolveOrFail checks in the callers: jdk.internal.reflect.DirectMethodHandleAccessor.NativeAccessor.ReflectiveInvoker#NATIVE_ACCESSOR_INVOKE
 
 disable?
 java.lang.invoke.ConstantBootstraps.staticFieldVarHandle:
@@ -976,39 +957,43 @@ old
 Thread Lcoal runtimedefineclass, also ignore Reflection for: 
 generateConcreteSpeciesCodeCheck and generateCheck
 
-
-ThreadLocal that might be replaced with a LambdaCalls:
-- MethodHandlesLookup#linkMethodHandleConstant
-
 api/java_lang/invoke/ConstantBootstraps/VarHandleTests.html -> for example of negative queries etc on reflection branch
 
 Problem with: api/java_lang/String/FormatLocale.html for reflection branch
-Allow load resource bundle: 
-sun.util.resources.Bundles#loadBundleFromProviders
-java.util.MissingReflectionRegistrationError: The program tried to reflectively access class sun.text.resources.cldr.ext.FormatData_pa without it being registered for runtime reflection. Add sun.text.resources.cldr.ext.FormatData_pa to the reflection metadata to solve this problem. See https://www.graalvm.org/latest/reference-manual/native-image/metadata/#reflection for help.
-        at java.base/jdk.internal.restrict.reflect.MissingReflectionRegistrationUtils.forClass(MissingReflectionRegistrationUtils.java:9)
-        at java.base/jdk.internal.restrict.LanguageRestriction.isClassPreloaded(LanguageRestriction.java:138)
-        at java.base/jdk.internal.restrict.LanguageRestrictionManager.dynamicClassLoadingCheck(LanguageRestrictionManager.java:133)
-        at java.base/java.lang.ClassLoader.findLoadedClass0(Native Method)
-        at java.base/java.lang.ClassLoader.findLoadedClass(ClassLoader.java:1326)
-        at java.base/java.lang.ClassLoader.loadClass(ClassLoader.java:662)
-        at java.base/java.lang.Class.forName(Class.java:629)
-        at java.base/java.lang.Class.forName(Class.java:604)
-        at jdk.localedata/sun.util.resources.provider.LocaleDataProvider.loadResourceBundle(LocaleDataProvider.java:54)
-        at jdk.localedata/sun.util.resources.provider.LocaleDataProvider.getBundle(LocaleDataProvider.java:40)
-        at java.base/sun.util.resources.Bundles$2.run(Bundles.java:270)
-        at java.base/sun.util.resources.Bundles$2.run(Bundles.java:265)
-        at java.base/java.security.AccessController.doPrivileged(AccessController.java:319)
-        at java.base/sun.util.resources.Bundles.loadBundleFromProviders(Bundles.java:264)
-        at java.base/sun.util.resources.Bundles.findBundleOf(Bundles.java:201)
-        at java.base/sun.util.resources.Bundles.findBundleOf(Bundles.java:160)
-        at java.base/sun.util.resources.Bundles.loadBundleOf(Bundles.java:145)
-        at java.base/sun.util.resources.Bundles.of(Bundles.java:106)
+-> WE ALLOW RESOURCE BUNDLE SINCE IT SHOULD BE HANDLED BY RESOURCES!
 
-TODO TODO TODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODOTODO
-Check in defineClass if another exception should not be thrown instead of finding the loaded class (and thuis throwing the missing registratîon exception)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Week 23 - 26.02.24}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-TODO list defineclass API for NI semantics
-
-
-WE ALLOW RESOURCE BUNDLE SINCE IT SHOULD BE HANDLED BY RESOURCES!
+Restriction disable:
+- Arrays#copyOf:
+    - LambdaForm.BasicType: used in static final field for LambdaForm.BasicType -> probably hapens befor ethe main is initialized -> ignore
+    - LambdaFormBuffer: used for LambdaFormName -> DISABLE
+    - LambdaFormEditor: used for LambdaFormEditor.Transform -> DISABLE
+- SharedSecrets use Class.forName to get jdk classes -> OK
+- Bundles#loadBundleFromProvider -> OK
+- DirectMethodHandleAccessor: for InjectedInvoker -> OK
+- ServiceLoader: 
+    - newInstance -> DISABLE
+    - nextProviderClass -> DISABLE
+    - getCosntructor -> DISABLE
+- DirectMethodHandle#createFunction: for DirectMethodHandle -> DISABLE
+- InvokerBytecodeGenerator#resolveFrom: for DelegatingMethodHandle\$Holder -> DISABLE
+- DirectMethodHandleAccessor:
+    - reflectiveInvoker: for "class\$\$InjectedInvoker" -> OK 
+- MethodHandleImpl
+    - getAccessor: for MethodHandleImpl.ArrayAccessor -> DISABLE, chekc if needs to be only for primitives   
+    - getFunction: for MethodHandleImpl -> DISABLE
+- Invokers
+    - Lazy#MH_as_Spreader: for MethodHandke -> DISABLE
+    - invokeBasicMethod: for MethodHandle -> DISABLE
+    - getNamedFunction: for Invokers -> DISABLE
+- MethodHandleNatives#makePreparedLambdaForm: for MethodHandle
+- BoundMethodHandle.Specializer static inti: for BoundMethodHandle
+- CallSite#getTargetHandle: for CalllSite
+- DelegatingMethodHandle#makeReinvokerForm: for DelegatingMethodHandle
+- DirectMethodHandle
+    - makePreparedLambdaForm: for MethodHandle
+    - makePreparedFieldLambdaForm: for Unsafe
+- NativeMethodHandle.Lazy static init: for NativeMethodHandle
