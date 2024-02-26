@@ -34,6 +34,31 @@ At build time during static analysis, points-to-analysis and heap snapshotting a
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Reflection}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsubsection{Java implementation}
+
+\subsubsection{Native Image implementation}
+Reachability Metadata and Tracing Agent
+Talk about the reflection metadata parser during analysis and how classes are registered
+Computing Reflection Metadata in code
+Some reflection methods are treated specially and are evaluated at build time when given constant arguments.
+
+Below are examples of calls that are replaced with the corresponding metadata element:
+
+```java
+Class.forName("java.lang.Integer")
+Class.forName("java.lang.Integer", true, ClassLoader.getSystemClassLoader())
+Class.forName("java.lang.Integer").getMethod("equals", Object.class)
+Integer.class.getDeclaredMethod("bitCount", int.class)
+Integer.class.getConstructor(String.class)
+Integer.class.getDeclaredConstructor(int.class)
+Integer.class.getField("MAX\_VALUE")
+Integer.class.getDeclaredField("value")
+```
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Java dynamic features}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 One of the cornerstone of Java platform is its dynamic features. At runtime JARs, resources, and proxies can be loaded, and methods can be invoked, without the compiler having seen them before. 
@@ -118,15 +143,16 @@ There are three main cases for how Native Image supports dynamic class loading: 
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{The invokedynamic bytecode instruction}
+\subsection{The invokedynamic instruction}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
+The \verb|invokedynamic| instruction was introduced in Java 7 to support the invocation of methods in the absence of static type information~\cite{noauthor_java_nodate} at runtime.
+This instruction is distinct from the JVM's traditional method invocation instructions (\verb|invokevirtual|, \verb|invokeinterface|, \verb|invokestatic|, and \verb|invokespecial|) in that it does not bind to a method at compile time. Instead, it defers the decision of which method to invoke to runtime
 ~\cite{rose_bytecodes_2009}
-Talk about the usage, Method Handles, CallSites and BootStrap methods and how it required dynamic class loading
-The JVM invokedynamic instruction was introduced in Java 7. It makes it possible to resolve method calls dynamically at runtime. method dispatch process by using a user-defined bootstrap method that computes the call target.
-The above example uses a LambdaMetafactory to create a CallSite that is used to invoke the target method. It uses a MethodHandles.Lookup to find the target method.
-The runtime approach is usually reflection-based and, consequently, inefficient. On the other hand, the compile-time solution is generally relying on code generation at compile-time. 
--> what are the case where it should throw bevaue it interprets user code?
+
+At the core of the invokedynamic's dynamic resolution mechanism is the bootstrap method. A bootstrap method is a user-defined method that the JVM invokes the first time an invokedynamic instruction is executed. This method is tasked with determining the specific method to be invoked. It does so by returning a CallSite object, which encapsulates a target MethodHandle. This MethodHandle effectively directs subsequent invocations of the invokedynamic instruction, bypassing the need for further resolution. The ability to specify the bootstrap method, along with the CallSite and MethodHandle it produces, allows for dynamic language behaviors such as runtime method linking and method invocation based on runtime conditions rather than static analysis.
+The bootstrap method for all landbda function is the LambdaMetafactory!
+
+Talk about MemberNames and their resolution! uses the constant pool and defineClass in JVM and reflection in Native Image
 
 https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html#jvms-5.4.3.6
 To resolve an unresolved symbolic reference R to a dynamically-computed constant or call site, there are three tasks. First, R is examined to determine which code will serve as its bootstrap method, and which arguments will be passed to that code. Second, the arguments are packaged into an array and the bootstrap method is invoked. Third, the result of the bootstrap method is validated, and used as the result of resolution.
@@ -154,10 +180,6 @@ The first task involves the following steps:
     Any exception that can be thrown as a result of failure of resolution of a symbolic reference to a method type can be thrown in this step.
 
 
-invokedynamic is a bytecode operation used to call arbitrary method within JVM. The exact method to be called and executed is unknown at a compile-time. Instead it is computed by object implementing CallSite. Thus the dynamic in invokedynamic.
-
-CallSite objects, as any other, have to be instantiated. Boostrap Method is a method which instantiates CallSite objects.
-
 Each invokedynamic has a known bootstrap method given as its compile-time parameter. Whenever a invokedynamic is processed for a first time, appropriate bootstrap method is invoked. As result of boostrap method execution a CallSite object is created. This CallSite object is then cached and associated by JVM to a given invokedynamic operation. From now on, whenever particular invokedynamic call is to be executed, a cached CallSite instance is used to resolve called method.
 
 Majority of boostrap methods are not written directly by end Java programmer. However that doesn't mean they are some rare obscure mechanism. They are created by javac compiler whenever particular java statements are used within source. String concatenation or lambda expression come to mind.
@@ -177,38 +199,9 @@ This specification allows an implementation flexibility as to when linking activ
 
     A symbolic reference to a dynamically-computed call site is not resolved until a bootstrap method that refers to it as a static argument is invoked.
 
-In Java, a class is initialized when it is first used. Native Image, can initialize them at build time, as a result using the class at runtime does not re-trigger class initialization.
-
-
 \subsubsection{Java implementation}
 Talk about the bootstrap method invokers, invokers, lanbdametafactory and altmetafactory and lambdaforms -> interpretation until the lambdaform is
 considered to be hot enough to be compiled, customized, uncustomized if needed, cf tiered compilation
 \subsubsection{Native Image implementaiton}
 Some are compiled at image built time (indy and trusted condy BSM), the other are forced interpreted
 
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\section{Reflection}
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\subsubsection{Java implementation}
-
-\subsubsection{Native Image implementation}
-Reachability Metadata and Tracing Agent
-
- \subsection{Computing Reflection Metadata in code}
-
-Some reflection methods are treated specially and are evaluated at build time when given constant arguments.
-
-Below are examples of calls that are replaced with the corresponding metadata element:
-
-```java
-Class.forName("java.lang.Integer")
-Class.forName("java.lang.Integer", true, ClassLoader.getSystemClassLoader())
-Class.forName("java.lang.Integer").getMethod("equals", Object.class)
-Integer.class.getDeclaredMethod("bitCount", int.class)
-Integer.class.getConstructor(String.class)
-Integer.class.getDeclaredConstructor(int.class)
-Integer.class.getField("MAX\_VALUE")
-Integer.class.getDeclaredField("value")
-```
