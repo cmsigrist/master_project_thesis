@@ -17,6 +17,8 @@ exactly like Native Image.
 
 %% TODO check on the bytecode-to-bytecode partial evaluator might have to move to future work
 We modify all reﬂective JDK features to operate under a closed-world assumption by checking the
-reachability metadata to determine if the reﬂectively accessed element is in the closed world. To pre-compute the reﬂectively-accessed elements we implement a bytecode-to-bytecode partial evaluator that transforms classes before they are loaded and extracts reachability metadata from them. Finally, implementing the Java mode is a mean to drive Native Image specifications. It enables us to clearly state what the expected behaviour is for all reflective accesses, and know which unexpected behaviours emerge due to compiler optimisations.   
+reachability metadata to determine if the reﬂectively accessed element is in the closed world. 
+% To pre-compute the reﬂectively-accessed elements we implement a bytecode-to-bytecode partial evaluator that transforms classes before they are loaded and extracts reachability metadata from them. 
+Finally, implementing the Java mode is a mean to drive Native Image specifications. It enables us to clearly state what the expected behaviour is for all reflective accesses, and know which unexpected behaviours emerge due to compiler optimisations.   
 \end{abstract}
 

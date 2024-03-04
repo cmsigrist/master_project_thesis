@@ -12,7 +12,7 @@
 %Feel free to use wikipedia to find related references, but do not cite wikipedia pages themselves. Consult those pages and your advisors to find the original sources and suggestions for background material.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Combining dynamic and static compilers}
-Most approaches try to optimize and mitigate the inherent trade-offs that come from purely static or dynamic compilers, or get the most of both worlds by combining them, i.e. as resource efficient as AOT but with the expressiveness of dynamic compilation.
+Most approaches either try to optimize and mitigate the inherent trade-offs that come from purely static or dynamic compilers, or get the most of both worlds by combining them by optimizing startup time as well as resource usage with AOT compilation and with the expressiveness of JIT compilation.
 The goal of this thesis is a bit more counter intuitive, as we go from a fully dynamic environment and reduce it to a closed world environment, we are effectively simulating an AOT compiler.
 
 Quicksilver~\cite{serrano_quicksilver_2000} is a quasi-static compiler for Java, that relies on both static and dynamic compilation. 
@@ -27,18 +27,17 @@ into native binaries, all dependencies are resolved at build time.
 Metadata for executables are emitted by the compilers to describe type, members and references. At runtime, the metadata is checked to dynamically load classes, resolve method invocation, etc., if needed .NET can fall back to JIT compilation.
 
 \section{Reflection}
-Reflection can be turned off on a module basis in Swift. This can lead to inconsistent behaviors at runtime, 
+In Smalltalk-80~\cite{goldberg_smalltalk-80_1983} everything is an object. Classes, metaclasses, and methods are all objects. Since the objects contain all necessary metadata for reflection, the objects can be directly queried, and instances of classes and classes themselves can be modified at runtime. 
+
+In Swift, reflection can be turned off on a module basis. This can lead to inconsistent behaviours at runtime 
 if another module depended on it. On the flip side of the coin, reflective calls cannot be statically analysed, and binaries can end up being polluted with unused metadata as a result.
-Swift's proposal for opt-in reflection metadata~\cite{noauthor_pitch_2022} is a way to mitigate these effects, and make reflection more transparent to API developers.
+Swift's proposal for opt-in reflection metadata~\cite{noauthor_pitch_2022} is a way to mitigate these problems and make reflection more transparent to API developers.
 Instead of parsing a JSON configuration, Swift introduce a marker protocol called \verb|Reflectable|. This marker is checked by the static compiler, so warning can be output when a module depends on metadata, and metadata is emitted only when it is also consumed.
 
 Like Native Image and the Java mode, Jax~\cite{tip_practical_1999} relies on a configuration file to specify which element will be reflectively accessed at runtime. They also offer an instrumented application to trace and log the accesses.
 
-
-Scala Native~\cite{noauthor_scala_nodate} is an AOT compiler, that uses annotation to support reflection. Modules and classes marked with the \verb|@EnableReflectiveInstantation| can be reflectively queried at runtime by other libraries and frameworks.
+Scala Native~\cite{noauthor_scala_nodate} is an AOT compiler and a lightweight runtime for Scala that uses annotation to support reflection. Modules and classes marked with the \verb|@EnableReflectiveInstantation| can be reflectively queried at runtime by other libraries and frameworks.
 This approach is similar to what we plan to implement, as this would offer the advantage of being statically analysable and more transparent for users.
-
-
 
 \section{Porting programming languages}
 `C (Tick C)~\cite{engler_c_1996} is an example of porting a static language, namely ANSI C, to a dynamic language. This allows dynamic code generation for better code optimization, 
@@ -55,9 +54,6 @@ Similarly to the Java mode, Google's V8 JavaScript VM implementation~\cite{noaut
 annotation on methods and blocks of code, to apply checks where the behaviour is expected to diverge from the sloppy mode. 
 The main difference with our approach is that this set of semantics does not deal with dynamic features like class loading, 
 as such no differentiation need to be made between runtime and compile time behaviour. 
-% Thus bypassing an important part of the project complexity.     
-
-
 
 % JavaScript strict mode as defined in the ECMAScript® 2024 Language Specification \url{https://tc39.es/ecma262/#sec-strict-mode-of-ecmascript} can be used to define another set of semantics consider more secure. It defines a stricter set of semantic when it comes to variable declaration (e.g. Assigning to an undeclared variable, unintentionally creating a global variable my misstyping its name), Block-scoped function declarations, as well as throwing the correct type of error rather than silently failing.
 % \url{https://v8.dev/blog/v8-release-74}
@@ -123,3 +119,12 @@ as such no differentiation need to be made between runtime and compile time beha
 
 
 %% Jax 2.7 dealing with reflection
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Future Work}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+partial byte code evaluator
+annotaitons
+build time initialization

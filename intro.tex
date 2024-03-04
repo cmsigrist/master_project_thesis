@@ -14,30 +14,35 @@
 % You may optionally follow the contribution list with a plan of the thesis, if this adds something over the table of content. 
 
 % This section is usually 3-5 pages.
+GraalVM Native Image~\cite{noauthor_native_nodate} is a project developed at Oracle Labs that compiles Java code into native binaries. Operating under the closed-world assumption, Native Image requires all the Java application's classes and libraries to be known in advance so these elements cam be marked as reachable and included in the image at build time.
+This constraint means that, for certain Java features like reflection whose implementation rely on runtime information, Native Image requires every reflectively-accessed elements to be specified in the form of reachability metadata to pass them to the image-build process. This reachability metadata can be provided as a JSON configuration file or it can be, in specific cases, pre-computed from user-code.
+Because building an image can take a long time, the issue with this approach is that computing the correct metadata can be a time-consuming process. If a single element is missing from the configuration, the \textit{native-image} crashes at runtime, and the entire image must be rebuilt.
+By introducing a new mode to the JDK that simulates Native Image semantic, Java can be used to quickly produce and test reachability metadata without the overhead of building a new image each time. For the rest of the thesis, we the term Java behaving according to Native Image's semantic and Java under native restrictions interchangeably.
+
+The main challenge of implementing such a mode is the lack of specification. Unlike Java, there is no specification for Native Image semantic. As we will see later, some behaviours can emerge due to compiler optimizations and seem unexpected at first sight (or even simply wrong) because of the absence of formal definition.
+This means that to simulate Native Image behaviour we first have to understand and define what is expected.
+Another requirements is to keep changes to the JDK itself to a minimum, each line introduced must have a clear reason for existing.
+Finally, the design must be correct. When operating on systems like the JDK, with such a scale, guaranteeing correctness is challenging, and requires a solid testing framework. 
+
+Many systems have been implemented to bridge the gap between static and dynamic compilers for Java. Combining both approach aims at optimizing startup performance and resource utilization, with ahead-of-time~(AOT) compilation, while adding support for Java runtime features with just-in-time~(JIT) compilation.
+The premises of this project is different, as we are already in a fully dynamic environment. We attempt to restrict Java dynamic feature to behave as if under a closed-world assumption, essentially tackling the problem the other way around.
+
+This thesis fits in an overall Native Image usability improvement plan.
+Porting Java to native restrictions enables users to compute metadata with a quicker turnaround, and if needed, to attach a debugger to Java rather than use GDB to debug the native-image. It also enables us to both understand and validate the semantics of Native Image through execution. In turn, having clear specifications means that debugging is made easier, leaving no room for unexpected behaviour.
+The way we approached the Java mode is a cross between what could be coined "software archeology", and 
+"software surgery": we dug into the deepest parts of the JDK to understand how native restrictions could be applied to very specific pieces of the code.
 
 
-Paragraph 1: Setting
-1. NI binaries
-2. Closed world assumption
-3. Metadata
+% Paragraph 6: Thesis statement -> "single" sentence
+% We introduce a new Java mode that simulates Native Image behaviour by operating in a pseudo closed-world assumption, allowing us to rapidly get the correct metadata configuration and to write specifications.
+ 
+% Add restriction on Java so that it can be statically analysed → write specs so that it’s easily transferable
+% Basically the restricted mode of Java will behave exactly like NI, and provide an external list (JSON) of the reachable elements
 
-Paragraph 2: Main challenge
-The changes to the JDK must remain minimal, it must still pass JCK. This require chirurgical changes and to pinpoint exactly the origin and the destination of each call. We need to somehow distinguish user runtime calls from the interpreter and build time from runtime initialisation. Writing specifications is not easy. 
-
-Paragraph 3: Why related work is insufficient
-This project is a strange beasts, we are porting an existing language to native restrictions. We are reducing the scope of what the compiler can do. What other works usually try to do is instead to extend that scope. Their goal is to add dynamic features to a static environment, essentially tackling the problem the other way around.    
-
-Paragraph 4-5: Approach and why it's needed
-Need for NI usability improvement: metadata agent problems, lack of specification, GDB debugging is hard (a real pain), long build time
-Getting the correct metadata is hard, and it takes a long time because building an image is long. Building an image is great, because the cost of aot compilation is amortized when the image can be reused. But debugging reflection in Native Image is slow, the checks for the inclusion of the reflectively-accessed elements are done at runtime. So we take advantage of the JVM for that.  
-We also want clearly written specifications for Native Image, this can only be done if a Java implementation exists. With specifications we also remove any behaviour that might be considered random for a user, e.g. some compiler optimisations might make the reflective access work and for another unknown reason crash. 
-
-Paragraph 6: Thesis statement -> "single" sentence
-We introduce a new Java mode that simulates Native Image behaviour by operating in a pseudo closed-world assumption, allowing us to rapidly get the correct metadata configuration and to write specifications.
- enabling understanding and validation of the semantics through execution
-Add restriction on Java so that it can be statically analysed → write specs so that it’s easily transferable
-Everything is public and will eventually go into the NI stack. except the JCK suite (private) but only used to check if everything’s working
-Basically the restricted mode of Java will behave exactly like NI, and provide an external list (JSON) of the reachable elements
-
-Paragraph 7: Results
-The specifications exist.
+% The specifications for reflection exist :)
+The main contributions of this thesis are the following:
+\begin{itemize}
+  \item We implement a Java mode that can simulate Native Image's behaviour for dynamic class loading, dynamic invocations and reflection
+  \item With this implementation we drive and provide Native Image's specifications for these features
+  \item We improve user's workflow by providing a faster way to debug reflection
+\end{itemize}

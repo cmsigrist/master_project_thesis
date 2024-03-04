@@ -967,33 +967,91 @@ Problem with: api/java_lang/String/FormatLocale.html for reflection branch
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 Restriction disable:
-- Arrays#copyOf:
-    - LambdaForm.BasicType: used in static final field for LambdaForm.BasicType -> probably hapens befor ethe main is initialized -> ignore
-    - LambdaFormBuffer: used for LambdaFormName -> DISABLE
-    - LambdaFormEditor: used for LambdaFormEditor.Transform -> DISABLE
-- SharedSecrets use Class.forName to get jdk classes -> OK
+- Arrays#copyOf: for LambdaName and Lambda.Transform
+    - copyOf -> OK
+    - copyOfRange -> OK
+- BoundMethodHandle.Specializer static inti: for BoundMethodHandle -> TODO DISABLE ?
 - Bundles#loadBundleFromProvider -> OK
-- DirectMethodHandleAccessor: for InjectedInvoker -> OK
-- ServiceLoader: 
-    - newInstance -> DISABLE
-    - nextProviderClass -> DISABLE
-    - getCosntructor -> DISABLE
-- DirectMethodHandle#createFunction: for DirectMethodHandle -> DISABLE
-- InvokerBytecodeGenerator#resolveFrom: for DelegatingMethodHandle\$Holder -> DISABLE
-- DirectMethodHandleAccessor:
-    - reflectiveInvoker: for "class\$\$InjectedInvoker" -> OK 
-- MethodHandleImpl
-    - getAccessor: for MethodHandleImpl.ArrayAccessor -> DISABLE, chekc if needs to be only for primitives   
-    - getFunction: for MethodHandleImpl -> DISABLE
-- Invokers
-    - Lazy#MH_as_Spreader: for MethodHandke -> DISABLE
-    - invokeBasicMethod: for MethodHandle -> DISABLE
-    - getNamedFunction: for Invokers -> DISABLE
-- MethodHandleNatives#makePreparedLambdaForm: for MethodHandle
-- BoundMethodHandle.Specializer static inti: for BoundMethodHandle
-- CallSite#getTargetHandle: for CalllSite
-- DelegatingMethodHandle#makeReinvokerForm: for DelegatingMethodHandle
+- CallSite
+    - getTargetHandle:for CalllSite -> OK
+    - uninitializedCallSiteHandle: for CalllSite -> OK
+- DelegatingMethodHandle#static init: for DelegatingMethodHandle -> OK
 - DirectMethodHandle
+    - makePreparedLambdaForm: for MethodHandle -> OK
+    - makePreparedFieldLambdaForm: for Unsafe -> OK
+    - createFunction: DirectMethodHandle
+    - Accessor#reflectiveInvoker: for InjectedInvoker -> OK
+- InvokerBytecodeGenerator#resolveFrom: for \$Holder -> OK
+- Invokers
+    - Lazy#MH_as_Spreader: for MethodHandke -> OK
+    - invokeBasicMethod: for MethodHandle -> OK
+    - createFunction: for Invokers -> OK
+- LambdaForm#createFormsFor: for LambdaForm -> DISABLE ?? might already be disbaled by BMI    
+- MethodHandleImpl
+    - getAccessor: for MethodHandleImpl.ArrayAccessor -> OK
+    - getFunction: for MethodHandleImpl -> OK
+    - maybeStopCounting : for \$maybeStopCounting -> OK
+    - varargsArray: for Object[] -> OK
+    - makeConstantHandle: for Class, MethodHandleImpl, Array, VarHandles -> OK
+- MethodHandleNatives
+    - varHandleOperationLinkerMethod: for VarHandleGuards -> OK
+    - makePreparedLambdaForm: for MethodHandle -> OK
+    - Lazy: for NativeMethodHandle -> OK
+- NativeMethodHandle
     - makePreparedLambdaForm: for MethodHandle
-    - makePreparedFieldLambdaForm: for Unsafe
-- NativeMethodHandle.Lazy static init: for NativeMethodHandle
+    - Lazy static init: for NativeMethodHandle -> OK
+- ServiceLoader: 
+    - newInstance -> OK
+    - nextProviderClass -> OK
+    - getCosntructor -> OK
+- SharedSecrets use Class.forName to get jdk classes -> OK
+- ValueConversions: for box unbox and ignore and convertPrimitive
+- VarForm#resolveMemberName: TODO check if needed
+- MethodHandles#linkMethodHandleConstant: disable memberName resolution to avoid loop (calling TypeConfiguration#getOrCreate calls linkMethodHandleConstant)
+
+
+JDK base reflection configuration: with SharedSecrets
+{
+  "name":"java.lang.invoke.MethodHandle",
+  "methods":[{"name":"invokeBasic","parameterTypes":["int","java.lang.Object"] }, {"name":"linkToSpecial","parameterTypes":["java.lang.Object","int","java.lang.Object","java.lang.invoke.MemberName"] }]
+},
+{
+  "name":"java.lang.invoke.VarHandleByteArrayAsInts$ArrayHandle",
+  "methods":[{"name":"set","parameterTypes":["java.lang.invoke.VarHandle","java.lang.Object","int","int"] }]
+},
+{
+  "name":"java.lang.invoke.VarHandleGuards",
+  "methods":[{"name":"guard_LII_V","parameterTypes":["java.lang.invoke.VarHandle","java.lang.Object","int","int","java.lang.invoke.VarHandle$AccessDescriptor"] }, {"name":"guard_LI_I","parameterTypes":["java.lang.invoke.VarHandle","java.lang.Object","int","java.lang.invoke.VarHandle$AccessDescriptor"] }]
+},
+{
+    "name":"java.util.ImmutableCollections$Access"
+},
+{
+    "name":"java.util.concurrent.ThreadLocalRandom$Access"
+},
+{
+    "name":"java.lang.invoke.MethodHandleImpl" -> used for invocation check!
+},
+{
+    "name":"java.lang.runtime.TemplateSupport"
+}
+
+TODO check the objectFieldOffset
+
+For reflection branch, without concurrency still get one cause of failure:
+Exception in thread "main" java.util.MissingReflectionRegistrationError: The program tried to reflectively access class java.util.concurrent.atomic.AtomicLong without it being registered for runtime reflection. Add java.util.concurrent.atomic.AtomicLong to the reflection metadata to solve this problem. See https://www.graalvm.org/latest/reference-manual/native-image/metadata/#reflection for help.
+	at java.base/jdk.internal.restrict.reflect.MissingReflectionRegistrationUtils.forClass(MissingReflectionRegistrationUtils.java:9)
+	at java.base/jdk.internal.restrict.LanguageRestriction.checkReflectivelyAccessedClassImpl(LanguageRestriction.java:212)
+	at java.base/jdk.internal.restrict.LanguageRestriction.checkReflectivelyAccessedField(LanguageRestriction.java:284)
+	at java.base/jdk.internal.restrict.LanguageRestriction.checkReflectivelyAccessedObjectFieldOffset(LanguageRestriction.java:437)
+	at java.base/jdk.internal.restrict.reflect.ReflectiveAccessChecksImpl.reflectivelyAccessedObjectFieldOffsetCheck(ReflectiveAccessChecksImpl.java:218)
+	at java.base/jdk.internal.restrict.LanguageRestrictionManager.objectFieldOffset1Check(LanguageRestrictionManager.java:403)
+	at java.base/jdk.internal.misc.Unsafe.objectFieldOffset1(Native Method)
+	at java.base/jdk.internal.misc.Unsafe.objectFieldOffset(Unsafe.java:1085)
+	at java.base/java.util.concurrent.atomic.AtomicLong.<clinit>(AtomicLong.java:78)
+	at java.base/java.nio.Bits.<clinit>(Bits.java:95)
+	at java.base/java.nio.DirectByteBuffer.<clinit>(DirectByteBuffer.java:61)
+	at java.base/java.nio.ByteBuffer.allocateDirect(ByteBuffer.java:360)
+	at javasoft.sqe.tests.vm.jni.gdbc001.gdbc00101m1.gdbc00101m1.testChecks(gdbc00101m1.java:26)
+	at javasoft.sqe.tests.vm.jni.gdbc001.gdbc00101m1.gdbc00101m1.run(gdbc00101m1.java:139)
+	at javasoft.sqe.tests.vm.jni.gdbc001.gdbc00101m1.gdbc00101m1.main(gdbc00101m1.java:143)
