@@ -9,29 +9,37 @@
 % distill the essence of your thesis into a single sentence.
 % The seventh paragraph will highlight some of your results
 
-% Your core contribution should be in a subsection and use bullet points when possible. You can refer to sections where the main results are shown. However, the purpose of contributions is not to give an overview of the thesis text. Instead, the goal is to differentiate and crisply summarize the value of the thesis work. 
+% Your core contribution should be in a subsection and use bullet points when possible. 
+% You can refer to sections where the main results are shown. However, the purpose of contributions is 
+% not to give an overview of the thesis text. Instead, the goal is to differentiate and crisply summarize the value of the thesis work. 
 
 % You may optionally follow the contribution list with a plan of the thesis, if this adds something over the table of content. 
 
 % This section is usually 3-5 pages.
-GraalVM Native Image~\cite{noauthor_native_nodate} is a project developed at Oracle Labs that compiles Java code into native binaries. Operating under the closed-world assumption, Native Image requires all the Java application's classes and libraries to be known in advance so these elements cam be marked as reachable and included in the image at build time.
-This constraint means that, for certain Java features like reflection whose implementation rely on runtime information, Native Image requires every reflectively-accessed elements to be specified in the form of reachability metadata to pass them to the image-build process. This reachability metadata can be provided as a JSON configuration file or it can be, in specific cases, pre-computed from user-code.
+GraalVM Native Image~\cite{noauthor_native_nodate} is a project developed at Oracle Labs that compiles Java code into native binaries. Operating under the closed-world assumption, Native Image requires all the application's Java classes and libraries to be known at build time. These elements are then marked as reachable and included in the image.
+This constraint means that, to support certain Java features like reflection whose implementation rely on runtime information, Native Image also requires reflectively-accessed elements to be specified in the form of reachability metadata, to be passed to the image-build process. This reachability metadata can be provided as a JSON configuration file or, in specific cases, pre-computed from user-code.
 Because building an image can take a long time, the issue with this approach is that computing the correct metadata can be a time-consuming process. If a single element is missing from the configuration, the \textit{native-image} crashes at runtime, and the entire image must be rebuilt.
-By introducing a new mode to the JDK that simulates Native Image semantic, Java can be used to quickly produce and test reachability metadata without the overhead of building a new image each time. For the rest of the thesis, we the term Java behaving according to Native Image's semantic and Java under native restrictions interchangeably.
+By introducing a new mode to the JDK that simulates Native Image semantic, Java can be used to quickly produce and test reachability metadata without the overhead of building a new image each time. For this thesis, we refer to Java behaving according to Native Image's semantic as Java under native restrictions.
 
 The main challenge of implementing such a mode is the lack of specification. Unlike Java, there is no specification for Native Image semantic. As we will see later, some behaviours can emerge due to compiler optimizations and seem unexpected at first sight (or even simply wrong) because of the absence of formal definition.
 This means that to simulate Native Image behaviour we first have to understand and define what is expected.
-Another requirements is to keep changes to the JDK itself to a minimum, each line introduced must have a clear reason for existing.
-Finally, the design must be correct. When operating on systems like the JDK, with such a scale, guaranteeing correctness is challenging, and requires a solid testing framework. 
+Another requirement is to keep changes to the JDK itself to a minimum, each line introduced must have a clear reason for existing.
+Finally, the design must be correct. When operating on systems like the JDK, with such a scale, guaranteeing correctness is challenging, and requires a solid testing framework.
 
-Many systems have been implemented to bridge the gap between static and dynamic compilers for Java. Combining both approach aims at optimizing startup performance and resource utilization, with ahead-of-time~(AOT) compilation, while adding support for Java runtime features with just-in-time~(JIT) compilation.
+Many projects attempt to bridge the gap between static and dynamic compilers for Java. Combining both approach aims at optimizing startup performance and resource utilization, with ahead-of-time~(AOT) compilation, while adding support for Java runtime features with just-in-time~(JIT) compilation.
 The premises of this project is different, as we are already in a fully dynamic environment. We attempt to restrict Java dynamic feature to behave as if under a closed-world assumption, essentially tackling the problem the other way around.
 
 This thesis fits in an overall Native Image usability improvement plan.
-Porting Java to native restrictions enables users to compute metadata with a quicker turnaround, and if needed, to attach a debugger to Java rather than use GDB to debug the native-image. It also enables us to both understand and validate the semantics of Native Image through execution. In turn, having clear specifications means that debugging is made easier, leaving no room for unexpected behaviour.
+Porting Java to native restrictions enables users to compute metadata with a quicker turnaround, and if needed, to attach a debugger to Java rather than use GDB to debug the \textit{native-image}. It also enables us to both understand and validate the semantics of Native Image through execution. In turn, having clear specifications means that debugging is made easier, leaving no room for unexpected behaviour.
 The way we approached the Java mode is a cross between what could be coined "software archeology", and 
 "software surgery": we dug into the deepest parts of the JDK to understand how native restrictions could be applied to very specific pieces of the code.
 
+The main contributions of this thesis are the following:
+\begin{itemize}
+  \item We implement a Java mode that can simulate Native Image's behaviour for dynamic class loading, dynamic invocations and reflection
+  \item With this implementation we drive and provide Native Image's specifications for these features
+  \item We improve user's workflow by providing a faster way to debug reflection
+\end{itemize}
 
 % Paragraph 6: Thesis statement -> "single" sentence
 % We introduce a new Java mode that simulates Native Image behaviour by operating in a pseudo closed-world assumption, allowing us to rapidly get the correct metadata configuration and to write specifications.
@@ -40,9 +48,3 @@ The way we approached the Java mode is a cross between what could be coined "sof
 % Basically the restricted mode of Java will behave exactly like NI, and provide an external list (JSON) of the reachable elements
 
 % The specifications for reflection exist :)
-The main contributions of this thesis are the following:
-\begin{itemize}
-  \item We implement a Java mode that can simulate Native Image's behaviour for dynamic class loading, dynamic invocations and reflection
-  \item With this implementation we drive and provide Native Image's specifications for these features
-  \item We improve user's workflow by providing a faster way to debug reflection
-\end{itemize}

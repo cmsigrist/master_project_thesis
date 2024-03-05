@@ -13,7 +13,7 @@
 Following the "write once, run anywhere" adage, the typical way of running a Java application is with a Java Virtual Machine~(JVM).
 The JVM offers an additional, target independent, layer of abstraction between implementation of 
 the Java programming language~\cite{noauthor_java_nodate-2} and the operating system itself.
-The JVM, is responsible for interpreting and executing Java code, and provides four key components: 
+It is responsible for interpreting and executing Java code, and provides four key components: 
 the class loader, to load classes into memory, the runtime data area, to store program data (that is the method area, heap, and stack), the execution engine, which reads and executes bytecode instructions, and the garbage collector. The JVM Specifications~\cite{noauthor_java_nodate-1} describe in details the requirements for a JVM. 
 This thesis focuses on a particular implementation, mainly Oracle's Java HotSpot~\cite{noauthor_hotspot_nodate} and its Just-In-Time~(JIT) compiler. 
 HotSpot relies on tiered compilation to optimize code execution. It consists of an interpreter, and two JIT compilers: C1 and C2. 
@@ -85,9 +85,9 @@ class ClassLoader {
 
 
 The method \verb|loadClass| is the usual entry point to initiate class loading. It can be called directly from user code, or triggered by a JVM instruction.
-When loading a class \verb|C| with the system class loader (see Figure~\ref{fig:class_C}), the JVM first checks with the method \verb|findLoadedClass|, if \verb|C| has already been loaded. If this is not the case, the class loader attempts to locate the corresponding data. When linking C, the superclass D must also be linked. Once all, symbolic references have been resolved, the JVM invoke the method \verb|defineClass0|, \verb|defineClass1| or \verb|defineClass2| to transform the array of bytes into a run-time representation of the class, and returns a \verb|Class| object.
+When loading a class \verb|C| with the system class loader (see Figure~\ref{fig:class_C}), the JVM first checks with the method \verb|findLoadedClass|, if \verb|C| has already been loaded, in which case it immediately returns the class, otherwise, the class loader attempts to locate the corresponding data. When linking C, the superclass D must also be linked. Once all, symbolic references have been resolved, the JVM invoke the method \verb|defineClass0|, \verb|defineClass1| or \verb|defineClass2| to transform the array of bytes into a run-time representation of the class, and returns a \verb|Class| object.
 
-\begin{figure}[h]
+\begin{figure}[ht]
     \centering
 \begin{lstlisting}[language=Java]
 class C extends D {
@@ -238,6 +238,6 @@ If the reflectively-accessed element is passed as a constant or effectively cons
     \label{fig:computing_reflection_metadata_in_code_code}
 \end{figure}
 
-Under the closed-world assumption no new element can be included in the universe after the image build time. To implement java dynamic features Native Image relies on another mechanism, mainly reflection. 
+Under the closed-world assumption no new element can be included in the universe after the image build time. To implement Java dynamic features Native Image relies on another mechanism, mainly reflection. 
 There are three main cases for how Native Image supports dynamic class loading: (1) the argument passed to \verb|loadClass| is a constant, it is constant folded during static analysis and gets compiled in the image, (2) the class is included in the reachability metadata, (3) the class is not a constant, nor is it registered, in which case the image will throw an exception at runtime.
-As for the \verb|invokedynamic| instruction, the main difference between HotSpot's implementation and Native Image's resides in the \verb|CallSite| resolution. Native Image distinguishes how it handles \verb|CallSite| resolution based on whether the bootstrap method is JVM-implemented or not. For trusted, JVM-implemented bootstrap methods, resolution occurs at build time. Otherwise, the bootstrap method is interpreted at runtime and the resolution relies on reflection, requiring the declaring class, the method and the types in the method signature to be registered for reflection.
+For the \verb|invokedynamic| instruction, the main difference between HotSpot's implementation and Native Image's resides in the \verb|CallSite| resolution. Native Image distinguishes how it handles \verb|CallSite| resolution based on whether the bootstrap method is JVM-implemented or not. For trusted, JVM-implemented bootstrap methods, resolution occurs at build time. Otherwise, the bootstrap method is interpreted at runtime and the resolution relies on reflection, requiring the declaring class, the method and the types in the method signature to be registered for reflection.

@@ -984,7 +984,7 @@ Restriction disable:
 - InvokerBytecodeGenerator#resolveFrom: for \$Holder -> OK
 - Invokers
     - Lazy#MH_as_Spreader: for MethodHandke -> OK
-    - invokeBasicMethod: for MethodHandle -> OK
+    - invokeBasicMethod: for MethodHandle -> OK -> THIS ONE WOULD BE USEFUL TO KEEP TO PREVENT LOGGING ALL METHOD TYPE FOR METHOD HANDLES
     - createFunction: for Invokers -> OK
 - LambdaForm#createFormsFor: for LambdaForm -> DISABLE ?? might already be disbaled by BMI    
 - MethodHandleImpl
@@ -1055,3 +1055,56 @@ Exception in thread "main" java.util.MissingReflectionRegistrationError: The pro
 	at javasoft.sqe.tests.vm.jni.gdbc001.gdbc00101m1.gdbc00101m1.testChecks(gdbc00101m1.java:26)
 	at javasoft.sqe.tests.vm.jni.gdbc001.gdbc00101m1.gdbc00101m1.run(gdbc00101m1.java:139)
 	at javasoft.sqe.tests.vm.jni.gdbc001.gdbc00101m1.gdbc00101m1.main(gdbc00101m1.java:143)
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Week 24 - 08.03.24}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Restriction disable:
+- Arrays#copyOf: for LambdaName and Lambda.Transform
+    - copyOf -> OK
+    - copyOfRange -> OK
+- BoundMethodHandle.Specializer static inti: for BoundMethodHandle -> TODO DISABLE ?
+- Bundles#loadBundleFromProvider -> OK
+- CallSite
+    - getTargetHandle:for CalllSite -> OK
+    - uninitializedCallSiteHandle: for CalllSite -> OK
+- DelegatingMethodHandle#static init: for DelegatingMethodHandle -> OK
+- DirectMethodHandle
+    - makePreparedLambdaForm: for MethodHandle -> OK
+    - makePreparedFieldLambdaForm: for Unsafe -> OK
+    - createFunction: DirectMethodHandle
+    - Accessor#reflectiveInvoker: for InjectedInvoker -> OK
+- InvokerBytecodeGenerator#resolveFrom: for \$Holder -> OK
+- Invokers
+    - Lazy#MH_as_Spreader: for MethodHandke -> OK
+    - invokeBasicMethod: for MethodHandle -> OK -> THIS ONE WOULD BE USEFUL TO KEEP TO PREVENT LOGGING ALL METHOD TYPE FOR METHOD HANDLES
+    - createFunction: for Invokers -> OK
+- LambdaForm#createFormsFor: for LambdaForm -> DISABLE ?? might already be disbaled by BMI    
+- MethodHandleImpl
+    - getAccessor: for MethodHandleImpl.ArrayAccessor -> OK
+    - getFunction: for MethodHandleImpl -> OK
+    - maybeStopCounting : for \$maybeStopCounting -> OK
+    - varargsArray: for Object[] -> OK
+    - makeConstantHandle: for Class, MethodHandleImpl, Array, VarHandles -> OK
+- MethodHandleNatives
+    - varHandleOperationLinkerMethod: for VarHandleGuards -> OK
+    - makePreparedLambdaForm: for MethodHandle -> OK
+    - Lazy: for NativeMethodHandle -> OK
+- NativeMethodHandle
+    - makePreparedLambdaForm: for MethodHandle
+    - Lazy static init: for NativeMethodHandle -> OK
+- ServiceLoader: 
+    - newInstance -> OK
+    - nextProviderClass -> OK
+    - getCosntructor -> OK
+- SharedSecrets use Class.forName to get jdk classes -> OK
+- ValueConversions: for box unbox and ignore and convertPrimitive
+- VarForm#resolveMemberName: TODO check if needed
+- MethodHandles#linkMethodHandleConstant: disable memberName resolution to avoid loop (calling TypeConfiguration#getOrCreate calls linkMethodHandleConstant)
+
+
+deadlock:
+- java_applet works
+- java_awt test all seems to fail
+-
