@@ -122,7 +122,7 @@ The \verb|invokedynamic| instruction was introduced to support the invocation of
 This instruction is distinct from the JVM's traditional method invocation instructions (\verb|invokevirtual|, \verb|invokeinterface|, \verb|invokestatic|, and \verb|invokespecial|) in that it does not bind to a method at compile time. Instead, it defers the decision of which method to invoke to runtime.
 
 At the core of the \verb|invokedynamic|'s resolution mechanism is the bootstrap method. A bootstrap method is a user-defined method that the JVM invokes the first time an \verb|invokedynamic| instruction is executed. 
-This method returns a \verb|CallSite| object, which encapsulates a target \verb|MethodHandle|. The \verb|MethodHandle| itself is a reference to an Executable or a Field, and contains all the necessary structures and data to invoke or access the object it references (e.g. the defining class, the Executable name and type signature, invoker methods). 
+This method returns a \verb|CallSite| object, which encapsulates a target \verb|MethodHandle|. The \verb|MethodHandle| is a reference to an Executable or a Field and contains all the necessary structures and data to invoke or access the object it references (e.g. the defining class, the Executable name and type signature, invoker methods). 
 
 \verb|CallSite| resolution involves three steps: (1) the bootstrap method handle is resolved, meaning all symbolic references to classes, interfaces, fields, and methods, as well as, all classes and interfaces contained in the method descriptor must be resolved, (2) the bootstrap method is invoked, and finally (3) the \verb|CallSite| is verified.
 Once resolved, the \verb|CallSite| is cached and associated to a particular \verb|invokedynamic| instruction.
