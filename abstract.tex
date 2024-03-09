@@ -5,7 +5,7 @@
 % insufficient, what the high-level intuition of your work is, maybe a neat
 % design or implementation decision, and key results of your evaluation.
 
-GraalVM Native Image compiles Java programs into native binaries that operate under the closed-world
+GraalVM Native Image compiles Java bytecode into a native image that operates under the closed-world
 assumption. This means that every reﬂectively-accessed element such as Class, Executable, or Field
 must be provided as reachability metadata to the image-build process. In Native Image, the reachability metadata is either 1) provided via user-provided conﬁguration ﬁles in JSON format or 2) computed by partially evaluating the input program to pre-compute the reﬂectively-accessed elements.
 
@@ -16,8 +16,8 @@ introducing a new mode to the JDK, so that it operates under the closed-world as
 exactly like Native Image.
 
 %% TODO check on the bytecode-to-bytecode partial evaluator might have to move to future work
-We modify all reﬂective JDK features to operate under a closed-world assumption by checking the
-reachability metadata to determine if the reﬂectively accessed element is in the closed world. 
+We modify all reﬂective JDK features to operate under the closed-world assumption by checking the
+reachability metadata to determine if the reﬂectively accessed element is included in the image. 
 % To pre-compute the reﬂectively-accessed elements we implement a bytecode-to-bytecode partial evaluator that transforms classes before they are loaded and extracts reachability metadata from them. 
 Finally, implementing the Java mode is a mean to drive Native Image specifications. It enables us to clearly state what the expected behaviour is for all reflective accesses, and know which unexpected behaviours emerge due to compiler optimisations.   
 \end{abstract}
