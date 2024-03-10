@@ -136,7 +136,10 @@ In this section, we will see how the Java mode fit in the overall Native Image u
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 One of the main goal of this thesis is to streamline reachability metadata computation for users.
 The first step in the computation of these metadata is the collection. To achieve this Native Image offers a tracing agent that automatically collect the reachability metadata required for an application. This agent omits to log metadata for calls emitted from the JVM to the JVM, because Native Image does not require these elements to be registered, as the reachability of these elements can be proven in the code.  
-\todo{why did we reimplement a new agent exactly?}
+\todo{why did we reimplement a new agent exactly? ni also has an agent that supports
+problems agent does not have the semantics has ni, takes a diff path
+second agent emits stuff it shouldn't and misses other not integrated into java
+the agent is slow.}
 To simplify and accelerate the work flow, we implement a tracing agent in the Java mode. In essence, the tracing agent is simply another language restriction added to Java. It is designed to follow the exact same path during an execution as Java under native restrictions. Instead of performing restriction checks, the agent logs the reflectively-accessed elements and outputs a configuration at the end of the execution run. 
 Once the metadata are collected, the configuration can be tested on Java under native restrictions, thus completely avoiding the overhead of building an image (Subsection~\ref{benchmark} illustrates that this overhead is non-negligible when it comes to testing).  
 \todo{improve}

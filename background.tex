@@ -146,7 +146,7 @@ Some bootstrap methods are provided by the JVM itself. For example, lambda expre
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Java Reflection API}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Java reflection provides an API that allows programs to inspect and manipulate objects, mainly classes, executables, and fields, at runtime.
+Java reflection provides an API that allows programs to inspect and manipulate objects, mainly classes, executables, and fields at runtime.
 Through reflection, Java programs can dynamically load classes, access fields, invoke methods, and create instances of classes with no compile-time dependency. It is also the core mechanism used to implement serialization and annotation processing. Figure~\ref{fig:reflective_calls} shows an example of Java program that uses the reflection API to invoke a method.
 
 \begin{figure}[ht]
@@ -191,7 +191,7 @@ Figure~\ref{fig:reflective_calls}, for example, would require the following entr
     \label{fig:reflect_config}
 \end{figure}
 
-To help capture this metadata, GraalVM provides a Tracing Agent. \todo{agent needs more explanation} Through the JVM Tool Interface~\cite{noauthor_jvmtm_nodate}, a native library, or \emph{agent}, can attach to the JVM, and access the state and control the applications running on the JVM. GraalVM's Tracing Agent introduces a list breakpoints for each method of the Java Reflection API to stop the JVM and record the reflectively-accessed elements. When the execution run has finished, the agent outputs a JSON reflection configuration that can be passed to the image-build process.   
+To help capture this metadata, GraalVM provides a Tracing Agent. Through the JVM Tool Interface~\cite{noauthor_jvmtm_nodate}, a native library, or \emph{agent}, can attach to the JVM, and access and control the state of the applications running on the JVM. GraalVM's Tracing Agent introduces a list breakpoints for each method of the Java Reflection API to stop the JVM and record the reflectively-accessed elements. When the execution run has finished, the agent outputs a JSON reflection configuration that can be passed to the image-build process.   
 
 If the reflectively-accessed element is passed as a constant or effectively constant (see Figure~\ref{fig:computing_reflection_metadata_in_code_code}), the reachability metadata can be pre-computed at build time, and the element does not need to be manually included in the JSON configuration. 
 
