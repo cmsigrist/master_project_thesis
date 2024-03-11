@@ -11,111 +11,36 @@
 %Please use bibtex to enter publications. To find a reference, use "DBLP PaperTitle" in a search engine and then use the bib file provided by bibtex.
 %Feel free to use wikipedia to find related references, but do not cite wikipedia pages themselves. Consult those pages and your advisors to find the original sources and suggestions for background material.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Combining dynamic and static compilers}
-Most approaches either try to optimize and mitigate the inherent trade-offs that come from purely static or dynamic compilers, or get the most of both worlds by combining them by optimizing startup time as well as resource usage with AOT compilation and with the expressiveness of JIT compilation.
-The goal of this thesis is a bit more counter intuitive, as we go from a fully dynamic environment and reduce it to a closed world environment, we are effectively simulating an AOT compiler.
-
+%%%%%%%%%%%%%%%%%%%%%%%%%
 Quicksilver~\cite{serrano_quicksilver_2000} is a quasi-static compiler for Java, that relies on both static and dynamic compilation. 
-When a Java class is compiled, a quasi-static image (QSI) closely associated to the class is created. At runtime, the pre-compiled binary is adapted such that the JVM may reuse it. If the QSI for the class does not exists, then the compiler falls back to dynamic compilation to load the class. 
-%The process guarantees the compiler compliance to the Java Specifications and offers both the advantage of static and dynamic compilation.
-By first starting in a closed world assumption and then expanding to dynamic compilation when needed, this approach essentially tackles our problem from the other direction.
-Moreover "stitching", the process used to adapt the images at runtime is quite complex. In contrast, one of the requirement for the Java mode is to introduce a minimal set of changes to the JDK.
+When a Java class is compiled, a quasi-static image~(QSI) is created. At runtime, the image is adapted such that the JVM may reuse it. If the QSI for the class does not exist, the compiler falls back to dynamic compilation to load the class. 
+By first starting in a closed-world assumption and expanding to a dynamic environment when needed, this approach tackles our problem from the other direction.
+Moreover, "stitching", the process used to adapt the images at runtime is quite complex. In contrast, one of the requirement for Java under native restrictions is to introduce a minimal set of changes to Java.
 
-Another example is Microsoft .NET Common Language Runtime~\cite{noauthor_common_2023}, an implementation of the Common Language Infrastructure~(CLI)~\cite{noauthor_common_2012}. 
-Similarly to Native Image, NGen~\cite{noauthor_clr_2019} pre-compiles executables 
-into native binaries, all dependencies are resolved at build time.
-Metadata for executables are emitted by the compilers to describe type, members and references. At runtime, the metadata is checked to dynamically load classes, resolve method invocation, etc., if needed .NET can fall back to JIT compilation.
+Another project that attempts to bridge the gap between static and dynamic compilation is Microsoft .NET Common Language Runtime~\cite{noauthor_common_2023}, an implementation of the Common Language Infrastructure~(CLI)~\cite{noauthor_common_2012}. 
+Similarly to Native Image, NGen~\cite{noauthor_clr_2019} pre-compiles executables into native binaries, and resolves all dependencies at build time.
+Metadata for executables are emitted by the compilers. At runtime, the metadata is checked to dynamically load classes, resolve method invocation, etc., and if needed .NET can fall back to JIT compilation.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Reflection}
-In Smalltalk-80~\cite{goldberg_smalltalk-80_1983} everything is an object. Classes, metaclasses, and methods are all objects. Since the objects contain all necessary metadata for reflection, the objects can be directly queried, and instances of classes and classes themselves can be modified at runtime. 
+%%%%%%%%%%%%%%%%%%%%%%%%%
+\todo{missing topic}In Smalltalk-80~\cite{goldberg_smalltalk-80_1983} everything is an object. Classes, metaclasses, and methods are all objects. Since the objects contain all necessary metadata for reflection, the objects can be directly queried, such that instances of classes and classes themselves can be accessed and modified at runtime. 
 
-In Swift, reflection can be turned off on a module basis. This can lead to inconsistent behaviours at runtime 
-if another module depended on it. On the flip side of the coin, reflective calls cannot be statically analysed, and binaries can end up being polluted with unused metadata as a result.
-Swift's proposal for opt-in reflection metadata~\cite{noauthor_pitch_2022} is a way to mitigate these problems and make reflection more transparent to API developers.
-Instead of parsing a JSON configuration, Swift introduce a marker protocol called \verb|Reflectable|. This marker is checked by the static compiler, so warning can be output when a module depends on metadata, and metadata is emitted only when it is also consumed.
+\todo{missing topic}In Swift, reflection can be turned off on a module basis, which can lead to inconsistent behaviours at runtime if another module's implementation depended on reflection. Moreover, reflective calls cannot be statically analysed, and binaries can end up being polluted with unused metadata as a result. Swift's proposal for opt-in reflection metadata~\cite{noauthor_pitch_2022} is a way to mitigate these problems and make reflection more transparent to API developers.
+Instead of parsing a JSON configuration, Swift introduce a marker protocol called \verb|Reflectable|. This marker is checked by the compiler, so warning can be output when a module depends on the metadata, and metadata is emitted only when it is also consumed.
 
-Like Native Image and the Java mode, Jax~\cite{tip_practical_1999} relies on a configuration file to specify which element will be reflectively accessed at runtime. They also offer an instrumented application to trace and log the accesses.
+Like Native Image and the Java mode, Jax~\cite{tip_practical_1999} relies on a configuration file to specify which element will be reflectively accessed at runtime. They also offer an instrumented application to trace and output the metadata.
 
 Scala Native~\cite{noauthor_scala_nodate} is an AOT compiler and a lightweight runtime for Scala that uses annotation to support reflection. Modules and classes marked with the \verb|@EnableReflectiveInstantation| can be reflectively queried at runtime by other libraries and frameworks.
 This approach is similar to what we plan to implement, as this would offer the advantage of being statically analysable and more transparent for users.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Porting programming languages}
-`C (Tick C)~\cite{engler_c_1996} is an example of porting a static language, namely ANSI C, to a dynamic language. This allows dynamic code generation for better code optimization, 
-but also a new kind of application like JIT compilers for C.
-% Users specify which expression will generate code at runtime or require code generation by prepending a ` (tick).
-Poletto, Hsieh, Engler and Kasshoek's tcc~\cite{poletto_c_1999} is an implementation of such a compiler. It consists of two backend, a static and a dynamic.
-The former compiles the the usual C or non dynamic part expressions, while the latter generates dynamic code that the static backend will them compile.
+%%%%%%%%%%%%%%%%%%%%%%%%%
+`C (Tick C)~\cite{engler_c_1996} is an example of porting a static language, namely ANSI C, to a dynamic language. This allows dynamic code generation for better code optimization, but also a new kind of application like JIT compilers for C. Poletto, Hsieh, Engler and Kasshoek's tcc~\cite{poletto_c_1999} is an implementation of such a compiler. It consists of two backend, a static and a dynamic.
+The former compiles the usual C or non dynamic part expressions, while the latter generates dynamic code that the static backend will then compile.
 
-% a bit less on topic
-JavaScript strict mode as defined in the ECMAScript® 2024 Language Specification~\cite{noauthor_ecmascript_nodate}, is implemented along side the usual 
-"sloppy mode", and applies another set of semantics to the language. The changes impose stricter variable naming and declaration, 
-stricter expression scope, prohibits hoisting, and throws exception instead of silent failing.
-Similarly to the Java mode, Google's V8 JavaScript VM implementation~\cite{noauthor_v8_nodate}, rely on a flag system, and a "use\_strict" 
-annotation on methods and blocks of code, to apply checks where the behaviour is expected to diverge from the sloppy mode. 
-The main difference with our approach is that this set of semantics does not deal with dynamic features like class loading, 
-as such no differentiation need to be made between runtime and compile time behaviour. 
-
-% JavaScript strict mode as defined in the ECMAScript® 2024 Language Specification \url{https://tc39.es/ecma262/#sec-strict-mode-of-ecmascript} can be used to define another set of semantics consider more secure. It defines a stricter set of semantic when it comes to variable declaration (e.g. Assigning to an undeclared variable, unintentionally creating a global variable my misstyping its name), Block-scoped function declarations, as well as throwing the correct type of error rather than silently failing.
-% \url{https://v8.dev/blog/v8-release-74}
-% Like the Java native mode, V8 uses a flag system as well as the "use\_strict", and applies check where the behaviour is expected to be different in the compiler. The main difference being that V8 does not need to differentiate runtime from compile or build time checks, and the behaviour is not caller dependent, which remains the challenging part of the project. 
-% -> diff with strict mode:
-% - parsing, exception or silent fail, bytecode generation for variable assignment, hoisting and expression scope, property deletion, basically everything can be done at the JIT compiler level TurboFan \url{https://v8.dev/docs/turbofan}, and no changfes need to be made to Ingition \url{https://v8.dev/docs/ignition} the interpreter
-% \url{https://chromium.googlesource.com/v8/v8.git}
-
-
-% # Quicksilver - quasi-static compiler for Java
-% **Important points**:
-% - combines advantage of static and dynamic compilation
-% - During compilation creates a quasi-static image (QSI). Each QSI is closely associated with a single class
-% - At execution time, attempts to reuse QSI or compile new one at runtime
-% - This way it supports dynamic features
-% - Shared class libraries
-% - Complex patching required (so called "stitching" in the paper) for runtime adaptation of pre-compiled binaries to a JVM instance
-% Java native mode:
-% -> tries to recreate a static environment in a dynamic environment
-% -> one of the requirements for the Java mode is to introduce minimal modifications to the JVM
-% -> pre-compiling and stitching back together is not an option
-% -> main difference is that the JVM already supports dynamic features, and we are trying to restric them, in that sense we solve the problem the other way around...
-
-% # CLR - compilation
-% > The Microsoft .NET CLR implementation achieves sharing of compilands simply by ensuring that pre-compilation itself produces shared libraries. That is, once pre-compilation is completed, sharing is automatic through the well-known, reliable and efficient techniques supported by most operating systems
-% 
-% **Important points:**
-% - NGEN (similarly to `native-image` generates native images)
-% NGen refers to the process of precompiling Microsoft® intermediate language (MSIL) executables into machine code prior to execution time.
-% - NGEN runs when .NET is installed
-
-% - Dependencies are resolved during build, so dynamic loads can only come from dependent assemblies (*assembly* is somewhat equivallent to a *JAR* in Java jargon)
-
-% - "Reachability" analysis available to trim native images ("trim size") and remove unreachable code
-% - Native images can be used as libraries, but source IL code is needed when native images are incompatible because of unmatched dependencies
-% To enable the runtime to provide services to managed code, language compilers must emit metadata that describes the types, members, and references in your code. Metadata is stored with the code; every loadable common language runtime portable executable (PE) file contains metadata. The runtime uses metadata to locate and load classes, lay out instances in memory, resolve method invocations, generate native code, enforce security, and set run-time context boundaries.
-% can fallback to JIT compilation
-
-
-% `C (Tick C) is an example of porting a static language, ANSI C, to a dynamic language. It allows dynamic code generation for better code optimization, inlining, dead code elimination by using runtime information.
-% Although it's an extension, its does not change the syntax and semantic of ANSI C itself
-% This enables the writing of JIT compilers for C like tcc.
-% Add a `in front of expression: it's a static descriptions of dynamic code, i.e. The code within the backquote and braces is a code specification for a call to printf that should be generated at run time.
-% tcc is a `C compiler with both a static and dynamic backend
-% One is the static back end, which compiles the nondynamic parts of ‘C
-% programs, and emits either native assembly code or C code suitable for compilation
-% by an optimizing compiler. The other, referred to as the dynamic back end, emits
-% C code to generate dynamic code. Once produced by the dynamic back end, this
-% C code is in turn compiled by the static back end
-
-% opt in reflection runtime type information C++
-% opt in reflection with Swift using annotation, instead of Json, future work for Java mode is to add annotation for reflection. 
-% 
-% on reflection wikipedia
-% Compiled languages rely on their runtime system to provide information about the source code. A compiled Objective-C executable, for example, records the 
-% names of all methods in a block of the executable, providing a table to correspond these with the underlying methods (or selectors for these methods) 
-% compiled into the program. In a compiled language that supports runtime creation of functions, such as Common Lisp, the runtime environment must include a compiler or an interpreter.
-% 
-% Reflection can be implemented for languages without built-in reflection by using a program transformation system to define automated source-code changes. 
-% 
-% Scala Native 
-% @EnableReflectiveInstantation annotation for reflection \url{https://scala-native.org/en/v0.4.0/changelog/0.4.0.html}
-
-
-%% Jax 2.7 dealing with reflection
+JavaScript strict mode as defined in the ECMAScript® 2024 Language Specification~\cite{noauthor_ecmascript_nodate}, is implemented along side the usual "sloppy mode", and applies another set of semantics to the language. The changes impose stricter variable naming and declaration, stricter expression scope, prohibits hoisting, and throws exception instead of silent failing. Similarly to the Java mode, Google's V8 JavaScript VM implementation~\cite{noauthor_v8_nodate}, relies on a flag system, and a "use\_strict" annotation on methods and blocks of code, to apply checks where the behaviour is expected to diverge from the sloppy mode. The main difference with our approach is that this set of semantics does not deal with dynamic features like class loading, as such no differentiation need to be made between runtime and compile time behaviour. 
