@@ -16,9 +16,9 @@
 %Therefore, no new element can be introduced at runtime.
 
 GraalVM Native Image~\cite{noauthor_native_nodate} compiles Java bytecode into a standalone binary. It performs reachability analysis to compute a fixed set of classes from which it produces a binary. This fixed set of reachable elements is known as the \emph{closed-world assumption}.
-Under this assumption, all the application's classes must be known at \emph{build time} to be included into the image. 
-However, dynamic features in Java, like reflection, can be used to access and load new classes at runtime, which contradicts the closed-world assumption.
- 
+Under this assumption, all the application's classes must be known at \emph{build time} to be included into the image. \todo{feels like it's missing a sentence...}
+However, dynamic features in Java, like reflection, can be used to access and load new classes at runtime, which contradicts the closed-world assumption. 
+
 To overcome the limitations of the closed-world assumption and support Java's dynamic features, Native Image requires reflectively-accessed elements, that is, Classes, \emph{Executables} (i.e., Methods and Constructors), and Fields, to be specified in the \emph{reachability metadata}~\cite{noauthor_reachability_nodate}. The reachability metadata is passed to the image-build process and indicates which element is reachable at runtime, and, thus, which element must be included into the image. This metadata is either provided as a JSON configuration file or can be, in specific cases, pre-computed from user code. Concretely, invoking the method \verb|Class#forName(String)| of the Java Reflection API~\cite{noauthor_core_nodate} for a class \verb|C| requires to manually specify the entry \verb|{"name":"C"}| in the JSON configuration file.
 To help collect the metadata, GraalVM provides a \emph{Tracing Agent}~\cite{noauthor_collect_nodate}. When running an application on a Java Virtual Machine~(JVM), the agent can be attached to the JVM to record the reflectively-accessed elements during an execution run and outputs a JSON configuration to pass to the image-build process.
 

@@ -15,13 +15,13 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Combining dynamic and static compilers}
 %%%%%%%%%%%%%%%%%%%%%%%%%
-Quicksilver~\cite{serrano_quicksilver_2000} is a quasi-static compiler for Java, that relies on both static and dynamic compilation. 
-When a Java class is compiled, a quasi-static image~(QSI) is created. At runtime, the image is adapted such that the JVM may reuse it. If the QSI for the class does not exist, the compiler falls back to dynamic compilation to load the class. 
+Quicksilver~\cite{serrano_quicksilver_2000} is a quasi-static compiler for Java that relies on both static and dynamic compilation. 
+A quasi-static image (QSI) is created when a Java class is compiled. At runtime, the image is adapted so the JVM can reuse it. If the QSI for the class does not exist, the compiler falls back to dynamic compilation to load the class. 
 By first starting in a closed-world assumption and expanding to a dynamic environment when needed, this approach tackles our problem from the other direction.
-Moreover, "stitching", the process used to adapt the images at runtime is quite complex. In contrast, one of the requirement for Java under native restrictions is to introduce a minimal set of changes to Java.
+Moreover, "stitching", the process used to adapt the images at runtime is quite complex. In contrast, one of the requirements for Java under native restrictions is to introduce a minimal set of changes to Java.
 
 Another project that attempts to bridge the gap between static and dynamic compilation is Microsoft .NET Common Language Runtime~\cite{noauthor_common_2023}, an implementation of the Common Language Infrastructure~(CLI)~\cite{noauthor_common_2012}. 
-Similarly to Native Image, NGen~\cite{noauthor_clr_2019} pre-compiles executables into binaries and resolves all dependencies at build time, but it also emits the metadata for the executables. At runtime, the metadata is checked to dynamically load classes, resolve method invocation, etc., and if needed .NET falls back to JIT compilation.
+Similarly to Native Image, NGen~\cite{noauthor_clr_2019} pre-compiles executables into binaries and resolves all dependencies at build time, but it also emits the metadata for the executables. At runtime, the metadata is checked to dynamically load classes, resolve method invocation, etc., and if needed, .NET falls back to JIT compilation.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Reflection}
