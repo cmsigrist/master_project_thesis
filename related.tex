@@ -21,8 +21,7 @@ By first starting in a closed-world assumption and expanding to a dynamic enviro
 Moreover, "stitching", the process used to adapt the images at runtime is quite complex. In contrast, one of the requirement for Java under native restrictions is to introduce a minimal set of changes to Java.
 
 Another project that attempts to bridge the gap between static and dynamic compilation is Microsoft .NET Common Language Runtime~\cite{noauthor_common_2023}, an implementation of the Common Language Infrastructure~(CLI)~\cite{noauthor_common_2012}. 
-Similarly to Native Image, NGen~\cite{noauthor_clr_2019} pre-compiles executables into native binaries, and resolves all dependencies at build time.
-Metadata for executables are emitted by the compilers. At runtime, the metadata is checked to dynamically load classes, resolve method invocation, etc., and if needed .NET can fall back to JIT compilation.
+Similarly to Native Image, NGen~\cite{noauthor_clr_2019} pre-compiles executables into binaries and resolves all dependencies at build time, but it also emits the metadata for the executables. At runtime, the metadata is checked to dynamically load classes, resolve method invocation, etc., and if needed .NET falls back to JIT compilation.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Reflection}

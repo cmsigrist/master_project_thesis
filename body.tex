@@ -7,22 +7,22 @@
 % how the design fits together.
 % Use as much as needed.
 
-The goal is to port Java to native restrictions with a minimal set of changes to the JDK. We want Java to behave exactly like Native Image, and crash for the exact same reasons that Native Image does. Our design targets labsjdk-ce-21, the community edition of the JDK developed at Oracle Labs. 
-This section explains (1) how semantics changes can be modeled through the concept of native restrictions, (2) how defining scopes in Java enables us to express these changes, and (3) how we improve Native Image usability.
+The goal is to port Java to native restrictions while applying a minimal set of changes to Java itself. We want Java to behave exactly like Native Image, and crash for the exact same reasons that Native Image does. Our design targets \verb|labsjdk-ce-21|, the community edition of the JDK developed at Oracle Labs. 
+This section explains (1) how we model semantics changes through the concept of native restrictions, (2) how defining scopes in Java enables us to express these changes, and (3) how we improve Native Image usability.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Native Restrictions}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-We introduce the concept of language restrictions to represent the set of semantics that Java is running with. These restrictions modify the way dynamic class loading, dynamic invocation, and reflection behave at runtime. Each feature can be individually selected to run under native restrictions, and behave like in Native Image, or not.
-At the two end of the spectrum of the language restrictions, we have that (1) when no restrictions are applied, Java behaves according to the Java Language Specification, (2) and when all the restrictions are applied, Java is running under native restrictions and behaves according to the Native Image Semantics, as presented in Section~\ref{native_image_specs}. 
+We introduce the concept of language restrictions to model the set of semantics that Java runs with. These restrictions modify how dynamic class loading, dynamic invocation, and reflection behave at runtime. Each feature can be configured to either run under native restrictions and behave as in Native Image or to run without restrictions and behave like in Java.
+At the two ends of the spectrum of the language restrictions, we have that when no restrictions are applied, Java behaves according to the Java Language Specification. When all the restrictions are applied, Java runs under native restrictions and behaves according to the Native Image Semantics, as presented in Section~\ref{native_image_specs}. 
 
-The native restrictions checks are runtime checks that we use to enforce native restrictions. They usually consists in a first check to see if the dynamic class loading and reflection features are running under native restrictions or not. In the latter case, the check returns without side effects. In the former case, additional operations can be conducted, such as checking if an element is registered for reflection, and throwing an exception if the semantics requires it. In doing so, we are effectively changing the behaviour of Java to match Native Image's.
+The native restrictions checks are runtime checks that we use to enforce native restrictions. They usually consist of a first check to see if the dynamic class loading, dynamic invocation, or reflection are running under native restrictions. If this is not the case, the check returns without side effects. Otherwise, additional operations can be applied, such as checking if an element is registered for reflection and throwing an exception if the semantics requires it. In doing so, we are effectively changing the behaviour of Java to match Native Image's.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Native Restrictions Scopes}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-To differentiate runtime from build time behaviour, but also JVM calls from user calls, we use the notion of native restrictions scopes. Opening a scope crates a region of code where Java is not constrained to native restrictions. 
-More formally, let \verb|C| and \verb|A| be two classes or interfaces (in this thesis the term class will refer to both classes and interfaces), let \verb|c| be a method of \verb|C|, and assume the existence of a mechanism to open scopes. As shown in Figure~\ref{fig:scopes}, \verb|c| opens a scope S, invokes the method \verb|a| of \verb|A|, and closes S when it returns from \verb|a|. The method \verb|a| invokes a method \verb|b| that performs some native restriction checks.
+To differentiate both runtime from build time behaviour and JVM calls from user calls, we use the notion of native restrictions scopes. Opening a scope creates a region of code where Java is not constrained to native restrictions. 
+More formally, let \verb|A| and \verb|C| be two classes or interfaces (in this thesis, the term class will refer to both classes and interfaces), let \verb|c| be a method of \verb|C|, and assume the existence of a mechanism to open scopes. As shown in Figure~\ref{fig:scopes}, \verb|c| opens a scope S, invokes the method \verb|a| of \verb|A|, and closes S when it returns from \verb|a|. Method \verb|a| invokes a method \verb|b|, which performs some native restriction checks.
 Then if \verb|c| is invoked, the checks in \verb|b| will be ignored, as the invocation happened inside of the scope S.
 If the method \verb|a| or \verb|b| is invoked by another caller that does not open a scope, the native restrictions checks in \verb|b| will be enforced.
 
@@ -51,20 +51,20 @@ class C {
     \label{fig:scopes}
 \end{figure}
 
-In the following subsections we show in more details how these scopes were chosen for dynamic class loading, dynamic invocation, and reflection and that they are correct according to Native Image's semantics.
+In the following subsections, we show in more detail how these scopes were chosen for dynamic class loading, dynamic invocation, and reflection and that they are correct according to Native Image's semantics.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Dynamic Class Loading}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 To simulate Native Image's behaviour for dynamic class loading, we require under native restrictions that defining a class at runtime with \verb|java.lang.ClassLoader#defineClass1|, \verb|java.lang.ClassLoader#defineClass2| or \verb|java.lang.ClassLoader#defineClass0| results in an \verb|UnsupportedOperationException|, unless the class is \emph{preloaded}. In Native Image, a class is preloaded if it is registered for reflection and has been linked at build time. 
-%Since the second clause cannot be reproduced in Java, we require the class path.
-Furthermore, a distinction between the instigators of the class loading must be made. As explained earlier, the method \verb|java.lang.ClassLoader#loadClass| is the usual entry point to initiate class loading, and it can be invoked by the JVM (as a result of a bytecode instruction) or directly from user code. In the former case, we do not want an \verb|UnsupportedOperationException| to be thrown. In the latter case, we want to throw the exception if the class is not preloaded, to prevent user from defining an arbitrary class at runtime.
+%Since the second clause cannot be reproduced in Java, we require the classpath.
+Furthermore, a distinction between the initiator of the class loading must be made. The method \verb|java.lang.ClassLoader#loadClass| is the usual entry point to initiate class loading and can be invoked by the JVM or directly from user code. In the former case, we do not want an \verb|UnsupportedOperationException| to be thrown. In the latter case, we want to throw the exception if the class is not preloaded to prevent users from defining an arbitrary class at runtime.
 
-We introduce the private wrapper method \verb|java.lang.ClassLoader#runtimeLoadClass| to differentiate the origin of the call that initiated class loading. Instead of directly calling \verb|loadClass|, the JVM now invokes the wrapper function which dispatches the call to the delegate class loader, as intended when running without restrictions. As shown in Figure~\ref{fig:load_class}, the JVM is the only entry point to \verb|runtimeLoadClass|. When the JVM invokes the method, it opens a scope which closes on \verb|defineClass1|'s return. In this scope class resolution proceeds as described in the background section on dynamic class loading. 
+We introduce the private wrapper method \verb|java.lang.ClassLoader#runtimeLoadClass| to differentiate the origin of the call that initiated class loading. Instead of directly calling \verb|loadClass|, the JVM now invokes the wrapper function, which dispatches the call to the delegate class loader, as intended when running without restrictions. As shown in Figure~\ref{fig:load_class}, the JVM is the only direct entry point to \verb|runtimeLoadClass|. When the JVM invokes the method, it opens a scope that closes on \verb|defineClass1|'s return. In this scope, class resolution proceeds as described in Background Section~\ref{dynamic_class_loading}. 
 Directly calling \verb|loadClass|, on the other hand, does not open the scope and invoking \verb|defineClass1| will result in an \verb|UnsupportedOperationException|.
 
 For the implementation of preloaded classes, we modify the method \verb|java.lang.ClassLoader#findLoadedClass|.
-Under native restrictions, we check if the scope is open in which case \verb|findLoadedClass| simply returns. If the scope is not open and the class is not registered a \verb|MissingReflectionRegistrationError| is thrown. If the class is registered, then we simulate the class being preloaded by invoking \verb|Class#forName| with the application class loader to load the class. Attempting to load a class that is not on the class path will still result in an \verb|UnsupportedOperationException|.
+Under native restrictions, we check if the scope is open, in which case \verb|findLoadedClass| returns normally. If the scope is not open and the class is not registered for reflection a \verb|MissingReflectionRegistrationError| is thrown. If the class is registered, we simulate the class being preloaded by invoking \verb|Class#forName| with the application class loader and return the newly loaded class. Attempting to load a class that is not on the classpath will still result in an \verb|UnsupportedOperationException|.
 
 % If not preloaded, then a class may be defined at runtime only if resolving the class or interface was required by one of the following instructions:
 % anewarray, checkcast, getfield, getstatic, instanceof, invokedynamic, invokeinterface, invokespecial,
@@ -77,43 +77,45 @@ Under native restrictions, we check if the scope is open in which case \verb|fin
     \label{fig:load_class}
 \end{figure}
 
-The design of dynamic invocation under native restrictions required multiple iterations to keep the changes to a minimum. Figure~\ref{fig:define_class_0} shows all the entry points from which \verb|java.lang.ClassLoader#defineClass0| can be invoked to define a hidden class a part of the of dynamic invocation process, and illustrates the final state of the design. 
+The design of dynamic invocation under native restrictions required multiple iterations to keep the changes to a minimum. Figure~\ref{fig:define_class_0} shows all the entry points from which \verb|java.lang.ClassLoader#defineClass0| can be invoked to define a hidden class as part of the of the dynamic invocation process and illustrates the final state of the design. 
 
 Under native restrictions the methods \verb|metafactory| and \verb|altMetafactory| of \verb|java.lang.invoke.LambdaMetfactory| throw an \verb|UnsupportedOperationException| to prevent the execution of arbitrary code at runtime, unless the invocation is part of the \verb|invokedynamic| instruction.
-To differentiate both behaviours, we open a scope in \verb|java.lang.BootstrapMethodInvoker#invoke|. The method is invoked by the JVM in the process of linking the \verb|CallSite|, when resolving the bootstrap method. Following Native Image's semantics, the scope is opened if and only if Native Image also compiles this bootstrap method at build time. Figure~\ref{fig:define_class_0}, shows that moving the opening of the scope up or down on the stack trace would mean introducing an additional change because of the branching out. We also do not have the required metadata on the bootstrap method to place it in the JVM.
+To differentiate both behaviours, we open a scope in \verb|java.lang.BootstrapMethodInvoker#invoke|. The method is invoked by the JVM in the process of linking the \verb|CallSite|, when resolving the bootstrap method. Following Native Image's semantics, the scope is opened if and only if Native Image also compiles this bootstrap method at build time. Figure~\ref{fig:define_class_0}, shows that moving the opening of the scope up or down on the stack trace would introduce an additional change because of the branching out. We also do not have the required metadata on the bootstrap method to place it in the JVM.
 
 % Certain user calls can trigger the definition of internal Java classes at runtime, for performance reason we treat these calls differently in Java under native restrictions.
-Specific user calls can trigger the definition of internal Java classes at runtime, for performance reason we treat these calls differently in Java under native restrictions.
-Concretely, the invocation and binding of a method handle and the lookup of an executable or field can result in the resolution of a method handle such that the JVM emits instructions to define internal classes of Java at runtime. During the resolution process, the JVM can, as an optimization, compile hidden internal classes like \verb|java.lang.invoke.LambdaForm|, \verb|InjectedInvoker|, and specialized \verb|BoundMethodHandle|.
-In Native Image, these hidden classes are forced-interpreted, and the resolution of method handle never generates specialized code. As such letting Java under native restrictions define these same classes does not contradict the semantics. Therefore, for performance reason we opt to open scopes in \verb|jdk.internal.reflect.MethodAccessGenerator#invoke|, and in the methods \verb|InvokeBytecodeGenerator#loadMethod|, \verb|MethodHandle.BindCaller#makeInjectedInvoker|, and \verb|ClassSpecializer#loadSpecies| of the \verb|java.lang.invoke| package. These changes correspond to the top part of the stack traces on the graph of Figure~\ref{fig:define_class_0}. By the same process as the \verb|LambdaMetfactory|, and due to the fact that none of the paths that need to implement native restrictions checks systematically meet at a node, we can prove that moving any of these checks up or down on the stack trace would lead to the same amount or strictly more modifications.
+Specific user calls can trigger the definition of internal Java classes at runtime; for performance reasons, we treat these calls differently in Java under native restrictions.
+Concretely, the invocation or binding of a method handle and the lookup of an executable or field can result in the resolution of a method handle such that the JVM emits instructions to define internal classes of Java at runtime. During the resolution process, the JVM can, as an optimization, compile internal classes, such as a \verb|java.lang.invoke.LambdaForm| and specialized form of \verb|BoundMethodHandle|.
+In Native Image, these hidden classes are forced-interpreted, and method handles are resolved through reflection. As such, letting Java under native restrictions define these classes and defer the restrictions checks to the resolution of method handle, as seen in the next section, does not contradict the semantics of Native Image. Therefore, for performance reasons, we opt to open scopes in \verb|jdk.internal.reflect.MethodAccessGenerator#invoke|, and in the methods \verb|InvokeBytecodeGenerator#loadMethod|, \verb|MethodHandle.BindCaller#makeInjectedInvoker|, and \verb|ClassSpecializer#loadSpecies| of the \verb|java.lang.invoke| package. These changes correspond to the top part of the stack traces on the graph of Figure~\ref{fig:define_class_0}. By the same process as the \verb|LambdaMetfactory|, and because none of the paths that need to implement native restrictions checks systematically meet at a node, we can prove that moving any of the scopes up or down on the stack trace would lead to the same amount or strictly more modifications.
 
 \begin{figure}
     \centering
-    \includegraphics[angle=90,origin=c,scale=0.35]{resources/Group 409.png}
+    \includegraphics[angle=90,origin=c,scale=0.35]{resources/Group 413.png}
     \caption{Entry points for the method \texttt{java.lang.ClassLoader\#defineClass0}. For readability, the stack trace is not exhaustive and focuses on methods that have multiple callers.}
     \label{fig:define_class_0}
 \end{figure}
 
 
-The Java Native Interface~(JNI)~\cite{noauthor_jni_nodate} enables downcalls to the JVM's implementation of the methods \verb|defineClass1|, \verb|defineClass2| and \verb|defineClass0|, as such the native restriction checks must be placed in the JVM rather than in Java. We insert the checks in the JVM's method \verb|SystemDictionary::resolve_from_stream| which is part of the common code for \verb|JVM_DefineClass| and \verb|JVM_DefineClassWithSource|. If none of the scopes are open, the call will result in an \verb|UnsupportedOperationException|. 
+Since the Java Native Interface~(JNI)~\cite{noauthor_jni_nodate} allows users to make downcalls to the JVM's implementation of the methods \verb|defineClass1|, \verb|defineClass2|, and \verb|defineClass0|, the native restriction checks must be placed in the JVM rather than in Java. We insert the checks in the JVM's method \verb|SystemDictionary::resolve_from_stream|, which is part of the common code for \verb|JVM_DefineClass| and \verb|JVM_DefineClassWithSource|. If none of the scopes are open, the call will result in an \verb|UnsupportedOperationException|. 
 
-Through a static study of entry points and stack traces, and the introduction of a few native restrictions scopes, we prove that the semantics of Java for dynamic class loading can be changed such that it simulates Native Image's.
+Through a static study of entry points and stack traces and the introduction of a few native restrictions scopes, we prove that the semantics of Java for dynamic class loading can be changed such that it simulates Native Image's.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Reflection}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Modifying the reflection feature under native restrictions consists in adding native restrictions checks to all methods in the class \verb|java.lang.Class|, the package \verb|java.lang.invoke.reflect|, and \verb|jdk.internal.sun.misc.Unsafe|, that returns a reflectively-accessed element. Section~\ref{native_image_specs} describes the list of checks in more details. 
 If the element is not registered for reflection, a \verb|MissingReflectionRegistrationError| is thrown.
-To check if an element is registered, we load all reflection configuration files that are on the class path or user defined. The classes and interfaces to parse the JSON configuration file and the data structure that holds the configuration are taken directly from Native Image. This means that changes made to that part of the code in Native Image can be easily adapted to work in Java under native restrictions.
+To check if an element is registered, we load all JSON configuration files that are on the classpath or user defined. The classes and interfaces to parse the JSON configuration file and the data structure that holds the configuration are taken directly from Native Image. This means that changes made to that part of the code in Native Image can be easily adapted to work in Java under native restrictions.
 
 In Java under native restrictions we modify the process of \verb|MethodHandle| resolution to match Native Image's semantics.
 The resolution of a method handle can occur, from the user perspective, either as the result of the dynamic invocation of a method or as the result of a lookup.
-Similarly to reflection, \verb|java.lang.MethodHandles.Lookup| provides an API to look up \verb|Executables|, \verb|Fields|, and \verb|VarHandles|, and returns a method handle to access the element. Internally the method handle contains a \verb|MemberName| that encapsulate the element's declaring class, name, and its type parameters if it has any. 
-In Native Image the \verb|MemberName| is resolved through reflection if the element is not an intrinsic method. To simulate this behaviour in Java under native restrictions, we introduce a reflective access check in the \verb|java.lang.invoke.MemberName#resolve|. 
+Similarly to reflection, \verb|java.lang.MethodHandles.Lookup| provides an API to look up \verb|Executables|, \verb|Fields|, and \verb|VarHandles|, and returns a method handle to access the element. Internally the method handle contains a reference to its symbolic form: a \verb|java.lang.invoke.LambdaForm|. The \verb|LambdaForm| is non-executable with a \verb|MemberName| field that encapsulate the element's declaring class, name, and its type parameters if it has any. This \verb|MemberName| must be resolved before the method handle can be invoked. 
+In Native Image the \verb|MemberName| is resolved through reflection if it does not reference an intrinsic method. To simulate this behaviour in Java under native restrictions, we introduce a native restriction check in the \verb|java.lang.invoke.MemberName#resolve|. 
 For intrinsic methods, we keep a hard-coded list of \verb|MemberName| that do not require reflection to be resolved. Scopes cannot be used in this case, as invoking any method to open a scope relies on these same intrinsic method handles.
 Moreover, as parts of the internal code for reflection configuration uses lambda expressions, we also open a scope in \verb|MethodHandles#linkMethodHandleConstant| to prevent cyclic dependencies.
 
-During reachability analysis, Native Image can prove that reflectively-accessed internal Java classes from Java to Java are reachable and do not need to be specified in the metadata. Internally, the JVM uses reflection to access internal Classes, Executables and Fields. To invoke a method obtained via a lookup, for example, the JVM will reflectively access the method \verb|java.lang.invoke.MethodHandle#invokeBasic|. Because Native Image can prove from the code that these elements are reachable, these calls from the JVM to the JVM are not constrained to native restrictions. To filter out these accesses, Java under native restrictions implements an \verb|AccessAdvisor|, adapted from the \verb|AccessAdvisor| used by GraalVM's Tracing Agent. The advisor contains a list of classes and patterns (e.g., \verb|java.lang.**|), such that if the caller at the origin of the reflective access is included in that list, the native restrictions checks are ignored.
+During reachability analysis, Native Image can prove that internal classes accessed via reflective invocations from Java to Java are reachable and do not need to be specified in the metadata. 
+%Internally, the JVM uses reflection to access internal Classes, Executables and Fields. 
+To invoke a method obtained via a lookup, for example, the JVM will reflectively access the method \verb|java.lang.invoke.MethodHandle#invokeBasic|. Because Native Image can prove from the code that these elements are reachable, these calls from the JVM to the JVM are not constrained to native restrictions. To filter out these accesses, Java under native restrictions implements an \verb|AccessAdvisor|, adapted from the \verb|AccessAdvisor| used by GraalVM's Tracing Agent. The advisor contains a list of classes and patterns (e.g., \verb|java.lang.**|), such that if the caller at the origin of the reflective access is included in that list, the native restrictions checks are ignored.
 
 Building on top of Java under native restrictions for dynamic class loading, we add native restrictions checks to verify that every reflectively-accessed element is registered for reflection and we introduce an \verb|AccessAdvisor| to filter out calls from the JVM to the JVM that can safely be ignored.
 
@@ -123,25 +125,24 @@ Building on top of Java under native restrictions for dynamic class loading, we 
 In this section, we will see how Java under native restrictions fits in the overall Native Image usability plan by improving the turnaround for computing reachability metadata and defining the expected behaviour of Native Image. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Improving computation turnaround of reachability metadata}
+\subsection{Streamlining reachability metadata computation}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 One of the main goal of this thesis is to streamline reachability metadata computation for users.
-The first step in the computation of these metadata is the collection. To achieve this, GraalVM's Tracing Agent automatically collect the reachability metadata required for an application. The issue with the current implementation is that the JVM on which it is attached does not follow Native Image's semantics. The agent can, as a result, take an entirely different path during execution than Native Image, and miss reflectively-accessed elements. Moreover, attaching an agent to the JVM significantly slows down the execution.
-Our solution to this problem is to implement another Tracing Agent in Java. The Tracing Agent is another language restriction, that is designed to follow the exact same path during an execution as Java under native restrictions. Instead of performing restriction checks, the agent logs the reflectively-accessed elements and outputs a configuration at the end of the execution run. 
-Once the metadata are collected, the configuration can be tested on Java under native restrictions, thus completely avoiding the overhead of building an image (Subsection~\ref{benchmark} illustrates that this overhead is non-negligible when it comes to testing).  
+The first step in the computation of the metadata is the collection. To achieve this, GraalVM's Tracing Agent automatically collect the reachability metadata required for an application. The issue with the current implementation is that the JVM on which it is attached to does not follow Native Image's semantics. The agent can, as a result, take an entirely different path during execution than Native Image, and miss reflectively-accessed elements. Moreover, attaching an agent to the JVM significantly slows down the execution.
+Our solution to this problem is to implement another Tracing Agent in Java. The Tracing Agent is another language restriction, that is designed to follow the exact same path during an execution as Java under native restrictions. Instead of performing restriction checks, the agent logs the reflectively-accessed elements and outputs a JSON configuration at the end of the execution run. 
+Once the metadata are collected, the configuration can be tested on Java under native restrictions, thus completely avoiding the overhead of building an image (the Evaluation Section~\ref{benchmark} illustrates that this overhead is non-negligible when it comes to testing).  
 
-Debugging \todo{improve or remove} is not an easy task. While it is possible to attach a Java debugger to the image build process, debugging the image itself is trickier as it often requires to use GDB. With the Tracing Agent and Java under native restrictions, a user can debug reflection issues in Java with a Java debugger. 
+% Debugging \todo{improve or remove} is not an easy task. While it is possible to attach a Java debugger to the image build process, runtime exception require to debug the image itself, which is trickier . Instead, with the Tracing Agent and Java under native restrictions, a user can debug reflection issues in Java with a Java debugger. 
 
-We propose a new and optimized workflow for computing metadata: (1) run the agent, (2) test the configuration with Java under native restrictions, (3.a) if the execution did not result in an exception, build the image, (3.b) otherwise debug the application by attaching a Java debugger.
+We propose a new and optimized workflow for computing metadata: (1) run the agent, (2) test the JSON configuration with Java under native restrictions, (3.a) if the execution did not result in an exception, build the image, (3.b) otherwise debug the application by attaching a Java debugger to Java under native restrictions if needed.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Defining expected behaviour}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Our first approach to specifying Native Image semantics for reflection and dynamic class loading consisted in creating a Technology Compatibility Kit~(TCK). The TCK is a test suite that illustrates the specifications. It gives concrete examples of the expected behaviours, and provides a future-proof way of asserting that different versions of Native Image still behaves according to the same semantic.
-It's designed to run with both Native Image and Java.
-Tests harnesses usually use annotations to get the test classes and individual tests to run. JUnit's~\cite{noauthor_junit_nodate} \verb|@Test| annotation on methods, for example, can be reflectively queried to obtain the test \verb|Method| to invoke in the test harness.
+It's designed to run with both Native Image and Java under native restrictions.
 
-Since using reflection in the TCK to test reflection is not an option, we instead rely on an annotation processor to generate on the fly all the data structure needed to run the test harness at compile time without using any reflective call (see Section~\ref{TCK} for details on the implementation).
+Tests harnesses usually use annotations to get the test classes and individual tests to run, but using reflection in the TCK to test reflection is not an option. Indeed, JUnit's~\cite{noauthor_junit_nodate} \verb|@Test| annotation on methods, for example, can be reflectively queried to obtain the test \verb|Method| to invoke in the test harness. Instead, we rely on an annotation processor to generate on the fly all the data structure needed to run the test harness at compile time without using any reflective call (see Section~\ref{TCK} for details on the implementation).
 
 The TCK contains positive and negative unit tests for dynamic class loading and reflection. To guarantee the correctness of the tests themselves, in particular for reflection, each test uses reflection on different dummy classes, such that the tests do not interfere with each other.
 The test uses the \verb|opaque| method, as seen in Figure~\ref{fig:opaque}, to wrap arguments passed for reflection, to ensure that no compiler optimizing is done across this call:
@@ -157,8 +158,8 @@ public static <T> T opaque(T value) {
     \label{fig:opaque}
 \end{figure}
 
-Despite - or thank to - its simplicity, the TCK did enable us to catch bugs in Native Image.
-Some of the bugs were trivial, see Figure~\ref{fig:new_multi_array_bug}, as Native Image only returned the wrong type of exception. 
+Despite - or thank to - its simplicity, the TCK did enable us to catch bugs in Native Image. Some of the bugs, as can be seen in Figure~\ref{fig:new_multi_array_bug}, are easy to fix, as Native Image only returns the wrong type of exception.  
+Instantiating a new array is supported in Native Image if the component type of the array in registered for reflection. But, currently, trying to instantiate a new array without registering \texttt{C} for reflection throws a fatal error \texttt{java.lang.IllegalArgumentException} that cannot be caught instead of throwing a \verb|MissingReflectionRegistrationError|. Similarly, trying to instantiate a new multi-dimension array without registering \texttt{C} for reflection throws a \texttt{com.oracle.svm.core.jdk.UnsupportedFeatureError}, when the feature is actually supported and only requires the class to be registered to work.
 
 \begin{figure}[ht]
     \centering
@@ -173,23 +174,19 @@ class Main {
     }
 }
 \end{lstlisting}
-    \caption{Instantiating a new array is supported in Native Image if the component type of the array in registered for reflection. Currently, trying to instantiate a new array without registering \texttt{C} for reflection throws a fatal error \texttt{java.lang.IllegalArgumentException} that cannot be caught. Trying to instantiate a new multi dimension array without registering \texttt{C} for reflection throws a \texttt{com.oracle.svm.core.jdk.UnsupportedFeatureError}.}
+    \caption{Example of bug caught with the TCK where Native Image's behaviour deviated from the expected behaviour.}
     \label{fig:new_multi_array_bug}
 \end{figure}
 
-One bug that was found with the TCK concerned the registration of superclasses. For a class \verb|B| that extends \verb|A|, if \verb|B| is registered for reflection but \verb|A| is not, then invoking \verb|Class#forName(opaque("A"))| still returns the class without throwing an exception, which is wrong according to the semantics (see~\ref{native_image_specs}). 
-We also found a performance bug for a preview feature of Java 21. The \verb|java.util.FormatProcessor| uses a bootstrap method that Native Image currently interprets. Running the program shown in Listing ~\ref{fig:format_processor} with Native Image is 2X slower than with HotSpot (after warm up). This bootstrap method can be proven safe to compile at build time, and the overhead of interpreting it each time at runtime could be avoided. By compiling it, we can obtain a speedup of 3X compared to HotSpot.
+Another bug that was found with the TCK concerned the registration of superclasses. For a class \verb|B| that extends \verb|A|, if \verb|B| is registered for reflection but \verb|A| is not, then invoking \verb|Class#forName(opaque("A"))| still returns the class without throwing an exception, which is wrong according to the semantics (see~\ref{native_image_specs}). 
+We also found a performance bug for a preview feature of Java 21. The \verb|java.util.FormatProcessor| uses a bootstrap method that Native Image currently interprets. Running the program shown in Listing ~\ref{fig:format_processor} with Native Image is 2X slower than with HotSpot (after warm up). This bootstrap method can be proven safe to compile at build time, and the overhead of interpreting it at runtime could be avoided. By compiling it, we can obtain a speedup of 3X compared to HotSpot.
 
 \begin{figure}[ht]
     \centering
 \begin{lstlisting}[language=Java]
 public class Main {
-    static int a = 10;
-    static int b = 30;
-    static String c = "STemplate";
-
     public static void main(String[] args) {
-        String str = FormatProcessor.FMT."Hello there";
+        String str = FormatProcessor.FMT."Hello there!";
     }
 }
 \end{lstlisting}
@@ -224,7 +221,7 @@ The \verb|LanguageRestrictionManager| is the main entry point to the language re
     \item \texttt{NoLanguageRestriction} which  models Java semantics
     \item \texttt{NativetraceLanguageRestriction} for the Java Tracing Agent that we implemented
 \end{itemize}
-The type of \verb|LanguageRestriction| is selected by setting the System property \verb|language.restriction|. 
+The type of \verb|LanguageRestriction| is selected by setting the System property \verb|language.restriction| to either \verb|'native'|, \verb|'none'| or \verb|'native-trace'|. 
 
 The \verb|LanguageRestrictionManager| is the interface for every native restrictions checks, and is used to hide away the scope abstraction when possible.
 The language restriction is initialized during the last phase of the VM initialization, and loads the reflection configuration.
@@ -233,8 +230,8 @@ The language restriction is initialized during the last phase of the VM initiali
 \section{Native Restrictions Scopes}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Native restrictions scopes are implemented with thread local counters. We use thread locals to prevent the opening of a scope on one thread from interfering with another thread's scopes.
-Concretely, each time a scope is opened, the counter is incremented, and each time a scope is closed, the counter is decremented. This also account for recursive calls, the scope is either open or closed until the base case of the recursion returns.
-To avoid memory leaks, the thread local is instantiated in a \emph{try-with-resource} block statement (see Figure~\ref{fig:bind_caller_twr}) and implements the \verb|AutoCloseable| interface, which calls the method \verb|close| to release resources on return or when an exception occurs.
+Concretely, each time a scope is opened, the counter is incremented, and each time a scope is closed, the counter is decremented. This also accounts for recursive calls: the scope is either open or closed until the base case of the recursion returns.
+To avoid memory leaks, the thread local is instantiated in a \verb|try-with-resource| block statement (see Figure~\ref{fig:bind_caller_twr}) and implements the \verb|AutoCloseable| interface, which calls the method \verb|close| to release resources on return or when an exception occurs.
 
 \begin{figure}[ht]
     \centering
@@ -249,7 +246,7 @@ static MethodHandle bindCaller(MethodHandle mh, Class<?> hostClass) {
     \label{fig:bind_caller_twr}
 \end{figure}
 
-As seen in Figure\ref{fig:bind_caller_lambda} and ~\ref{fig:bind_caller_lrm}, to minimize the changes made to Java, the try-catch block statement is hidden in the \verb|LanguageRestrictionManager| and the region of code that was in the block in Figure~\ref{fig:bind_caller_twr} is passed as a lambda expression, and invoked in the \verb|LanguageRestrictionManager|. Hiding the the scope opening in a lambda is possible only for a region of code that is not on the path of an \verb|invokedynamic| instruction, as this would create a cyclic dependency. 
+As seen in Figure~\ref{fig:bind_caller_lambda} and~\ref{fig:bind_caller_lrm}, to minimize the changes made to Java, the \verb|try-with-resource| block statement is hidden in the \verb|LanguageRestrictionManager| and the region of code that was in the block in Figure~\ref{fig:bind_caller_twr} is passed as a lambda expression, and invoked in the \verb|LanguageRestrictionManager|. Hiding the the scope opening in a lambda is only possible for a region of code that is not on the path of an \verb|invokedynamic| instruction, as this would create a cyclic dependency. 
 
 \begin{figure}[ht]
     \centering
@@ -278,8 +275,9 @@ public static MethodHandle bindCallerCheck(Supplier<MethodHandle> s) {
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Technology Compatibility Kit}\label{TCK}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-The TCK tests Java's dynamic features and reflection. As the test harness cannot rely on reflection, we use an annotation processor to generate all the data structures needed to invoke the tests. 
-The TCK is a Gradle project composed of 4 sub-projects: 
+The TCK is a test suite for Native Image and Java under native restrictions that tests Java's dynamic features and reflection. 
+%As the test harness cannot rely on reflection, we use an annotation processor to generate all the data structures needed to invoke the tests. 
+It is Gradle~\cite{noauthor_gradle_2024} project composed of 4 sub-projects: 
 \begin{itemize}
     \item the annotation-processor contains all the logic for the annotation processor and the generation of scripts to run the tck
     \item the tck contains the tests classes
@@ -289,7 +287,7 @@ The TCK is a Gradle project composed of 4 sub-projects:
 The separation of the features into sub-projects simplify the compilation chains, as the first three sub-projects depends on the tck-utils, the tck depends on the annotation-processor, and the tck-harness depends on the tck.
 
 The aim of the TCK is to asserts that Native Image and Java under native restrictions follow the correct semantics. Therefore, it must also be able to run tests both with and without reachability metadata. Since, by default, all tests in a test class share the same metadata and are built into a single image for Native Image, a second requirement is that a test should be able to run in isolation and have its own separate image and metadata. 
-Figure~\ref{fig:tck_for_name} is an example of test that the TCK can run. Each test in the suite is annotated with the \verb|@Test| annotation. The annotation contains fields for the reflection metadata, for the expected exception when the test runs without the metadata, and an optional field \verb|sinceVersion|, if a previous version of Native Image did not behave as expected. The \verb|@NativeImageTCKDeviation| means that the current version of Native Image does not return the expected behaviour. The \verb|@RunTestInIsolation| can be used to run the test in an isolated image. 
+Figure~\ref{fig:tck_for_name} is an example of test that the TCK can run. Each test in the suite is annotated with the \verb|@Test| annotation. The annotation contains fields for the reflection metadata, for the expected exception when the test runs without the metadata, and an optional field \verb|sinceVersion|, if a previous version of Native Image did not behave as expected. The \verb|@NativeImageTCKDeviation| means that the current version of Native Image does not return the expected behaviour. Finally \verb|@RunTestInIsolation| can be used to run the test in an isolated image. 
 
 \begin{figure}[ht]
     \centering
@@ -320,7 +318,7 @@ To implement these features, the annotation processor does most of the heavy lif
     \item It parses the \verb|reflectionMetadata| field of each test and generates the associated JSON configuration in a \verb|reflect-config.json| files
     \item It generates bash scripts for Native Image and Java with the command to run the test harness with and without metadata for each test class and isolated test
 \end{enumerate}
-The \verb|TestData| contains, for each test, the expected results when running without registration, an optional \verb|sinceVersion|, a boolean for if it should run in isolation and if Native Image's behaviour deviates, and a \verb|Callable|, such that the test harness can invoke the method without requiring itself any reachability metadata.  
+The \verb|TestData| contains, for each test, the expected results when running without registration, an optional \verb|sinceVersion|, a boolean for if it should run in isolation and if Native Image's behaviour deviates, and a \verb|Callable|, such that the test harness can invoke the method without relying on reflection.  
 A \verb|TestRunnerMap.java| file is automatically generated during the annotation parsing, and contains the map described in 1., with its entry statically initialized. 
 
 To run the tests in the TCK, the test harness instantiates an instance of \verb|TestRunnerMap| at runtime, iterates through the entries, invokes the \verb|Callable| in the \verb|TestData|, and asserts that the returned result is correct.
@@ -338,9 +336,7 @@ To run the tests in the TCK, the test harness instantiates an instance of \verb|
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{The Native Image Semantics}\label{native_image_specs}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% https://pandoc.org/diagram.svgz?v=20240215100618
 %% TODO add snippets of code to show how it differes from normal Java
-
 
 % ## Unimplemented Features
 % #### java.lang.SecurityManager
@@ -363,19 +359,21 @@ In this section we show that the design of Java under native restrictions is cor
 \section{Correctness of Java under native restrictions}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-To verify that Java under native restrictions is indeed correct with regard to the semantics of Native Image, we run the test suite with and without the reachability metadata, and asserts that our implementation does throw an exception in the correct place when the metadata is missing, and returns the expected results otherwise. This step of the evaluation trivially succeeded, as the development of Java under native restrictions was partly test-driven by the TCK.
+To verify that Java under native restrictions is indeed correct with regard to the semantics of Native Image, we run the TCK with and without the reachability metadata, and asserts that our implementation does throw an exception in the correct place when the metadata is missing, and returns the expected results otherwise. This step of the evaluation trivially succeeded, as the development of Java under native restrictions was partly test-driven by the TCK.
 
-The other way of asserting the correctness of our implementation is with the JCK. The JCK is a proprietary test suite from Oracle used to assert that a Java implementation is compliant with the Java Language Specification. For Native Image, a CI job is available on the enterprise repository to run the test suite. Running the JCK is done is three steps, it is first run with the Tracing Agent to collect all the metadata, then images are built for the tests with the collected metadata, and finally the images are executed. For Java under native restrictions we adapted the stages such that the first one used our implementation of the Tracing Agent, the build stage is altogether skipped and the image run stage is replaced with a Java under native restrictions run stage.
+The other way of asserting the correctness of our implementation is with the JCK. The JCK is a proprietary test suite from Oracle used to assert that a Java implementation is compliant with the Java Language Specification. A CI job is available on the enterprise repository to run the JCK for Native Image. The CI job consists in three stages, (1) the JCK is first run with the Tracing Agent to collect all the metadata, (2) the images are built for the tests with the collected metadata, (3) the images are executed. For Java under native restrictions we adapted the stages such that the first one used our implementation of the Tracing Agent, the build stage is altogether skipped and the image run stage is replaced with a Java under native restrictions run stage.
 
-The evaluation criteria we observe when running the JCK with Java under native restrictions is whether our implementation is at least as compliant as Native Image. Currently, Native Image does not pass all the JCK tests. Some tests fails because they are transients or attempt to test unsupported or not yet implemented features. Other tests fails because they contradict Native Image's Semantics. For example, tests that dynamically load a class at runtime that is not on the class path should fail in both Native Image and Java under native restrictions. 
+The evaluation criteria we observe when running the JCK with Java under native restrictions is whether our implementation is at least as compliant as Native Image is. Currently, Native Image does not pass all the JCK tests. Some tests fails because they are transients or attempt to test unsupported or not yet implemented features. Other tests fails because they contradict Native Image's Semantics. For example, tests that dynamically load a class at runtime that is not on the classpath should fail in both Native Image and Java under native restrictions. 
 
 For the JCK we obtain the following result: Java under native restrictions passes all the tests of the JCK that Native Image does and also fails where Native Image fails, except for 17 specific tests out of the 115'464. Native Image has a special class loader, used for features like the JMX framework, that enables dynamic class loading of classes from another module. Since Java under native restrictions does not implement this feature, one limitation is that we do not support connection to a remote RMI connector (i.e., instantiating a \verb|javax.management.remote.rmi.RMIConnector| throws an \verb|UnsupportedOperationException|). 
-Another limitations is that some tests are transients when run with Java under native restrictions but not in Native Image. The reason could be that the agent follows a different paths when operating in a concurrent setting, and cannot record all the reflectively-accessed elements on every paths. 
+Moreover, some tests are transients when run with Java under native restrictions but not in Native Image. The reason could be that, in these tests, the agent follows a different paths when operating in a concurrent setting, and cannot record all the reflectively-accessed elements on every paths. 
+
+A current limitation of Java under native restrictions concerns dynamic proxies and resource bundles. These are two dynamic features of Java that can be used to access and load new elements at runtime. In Native Image these two features are treated differently than reflectively-accessed elements, and have their own separate JSON configuration files in the reachability metadata. Java under native restrictions does not currently implement native restrictions checks for dynamic proxies and resources, as such it is still possible to dynamically load these elements at runtime, without specifying them in the metadata. 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Benchmarks for Java under native restrictions and Native Image}\label{benchmark}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-In this section we show that Java under native restrictions can be successfully used to streamline the computation of reachability metadata. The benchmark were conducted on a 20 cores 13th Gen Intel(R) Core(TM) i7-1370P machine with 32GB of RAM. We conduct two sets of experiments on the same Java program (see Figure~\ref{fig:benchmark}). 
+In this section we show that Java under native restrictions can be successfully used to streamline the computation of reachability metadata. The benchmarks were conducted on a 20 cores 13th Gen Intel(R) Core(TM) i7-1370P machine with 32GB of RAM. The two sets of experiments are run on the same Java program (see Figure~\ref{fig:benchmark}). 
 
 \begin{figure}[ht]
     \centering
@@ -400,7 +398,7 @@ public class Main {
     }
 }
 \end{lstlisting}
-    \caption{Test scenario that performs three reflective access for three different elements: one to load the class, another for the method, and the last one to get the Constructor.}
+    \caption{Test scenario that performs three reflective access for three different elements: one to load the class, another to get the Method \texttt{greet}, and the last one to get the Constructor.}
     \label{fig:benchmark}
 \end{figure}
 
@@ -424,12 +422,12 @@ Native Image                   & 305                               \\ \bottomrul
 
 For the second experiment, the metric we are interested in, is the time it takes for Native Image and Java under native restrictions to crash when the reflection metadata are incomplete. 
 We start to time the experiment once \verb|javac| has finished compiling the program into class files, with the \verb|time| bash command. 
-The results for each configuration are obtained by averaging at least 4 good runs, that is, a run is considered to be good if it is not an outlier (i.e., a 2X or more slow down from one run to the other is considered to be an outlier).
+The results for each configuration are obtained by averaging 4 runs, and discarding outliers (e.g., if a run is 2X slower than previous runs, it is considered an outlier).
 For Native Image we measure the time between the start of the image build process and the end of the execution of the image, the latter is negligible (the \verb|time| command returns 0.00s). For Java we measure the time of execution.
 
-Let's assume we have a new programmer that never used the reflection API in Native Image, does not know of the Tracing Agent's existence, and attempts to run the program in Figure~\ref{fig:benchmark}. Each time they get a \verb|MissingReflectionRegistrationError|~(MRRE), they follow the instructions in the error message and incrementally update the reflection metadata.
+Let's assume we have a new programmer that never used the reflection API in Native Image, did not read any of the documentation, and attempts to run the program in Figure~\ref{fig:benchmark}. Each time they get a \verb|MissingReflectionRegistrationError|~(MRRE), they follow the instructions in the error message and incrementally update the reachability metadata.
 This approach gives an estimation of how much time it would take for them to obtain the correct metadata in Native Image, versus how long it would have taken if they had used Java under native restrictions. 
-In Table~\ref{tab:benchmark}, we can see that building an image for this program and waiting for it to crash at runtime takes around 3 minutes, while on Java it takes half a second. This means that computing the correct metadata takes 666X more time on Native Image than on Java.
+In Table~\ref{tab:benchmark}, we can see that building an image for this program and waiting for it to crash at runtime takes around 3 minutes, while on Java it takes half a second. Computing the correct metadata for this program takes 666X more time on Native Image than on Java.
 This number proves that porting Java to native restrictions helps improve the turnaround for the computation of reachability metadata.
 
 \begin{table}[ht]

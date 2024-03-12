@@ -1,0 +1,37 @@
+LambdaForm: 
+- The symbolic, non-executable form of a method handle's invocation semantics.
+- Has a field MemberName vmentry;   // low-level behavior, or null if not yet prepared
+- Kind DMH.invokeVirtual, linkToCallSite
+- prepare() makes the LF executable -> every MH must prepare its LF
+- prepare() -> generateLFInterpreterEntryPoint generate bytecode for the MemberName
+- compile create bytecode for the LF and its MemberName
+- loadMethod(): define the invoker class and resolve its MemberName
+
+     * The main problem here is to keep LFs reasonably generic,
+     * while ensuring that hot spots will inline good instances.
+     * "Reasonably generic" means that we don't end up with
+     * repeated versions of bytecode or machine code that do
+     * not differ in their optimized form.  Repeated versions
+     * of machine would have the undesirable overheads of
+     * (a) redundant compilation work and (b) extra \verb|I$| pressure.
+     * To control repeated versions, we need to be ready to
+     * erase details from LFs and move them into MH data,
+     * whenever those details are not relevant to significant
+     * optimization.  "Significant" means optimization of
+     * code that is actually hot.
+     *
+     * Achieving this may require dynamic splitting of MHs, by replacing
+     * a generic LF with a more specialized one, on the same MH,
+     * if (a) the MH is frequently executed and (b) the MH cannot
+     * be inlined into a containing caller, such as an invokedynamic.
+
+
+-> forceInterpretation does not solve the problem of dynamic class loading -> the JVM will attempt to define the MH class or LFI
+
+In NI, everything that attemps to load a MH at runtime returns null -> instead all MH are register "registerReachabilityHandler" before analysis
+-> and implemented through reflection (register the class and methods)
+
+
+
+- BMH is a small struct containing one or more saved argument values, plus a target method handle which will eventually receive those arguments
+- for opti we allow the binding of arg to BMH -> so ClassSpecializer must be able to define the LL, LLL etc.

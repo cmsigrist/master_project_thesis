@@ -15,9 +15,10 @@ The JVM offers an additional, target-independent, layer of abstraction between i
 The JVM is responsible for interpreting and executing Java bytecode, and provides four key components~\cite{dannarapu_jvm_2023-1}: 
 the class loader to load classes into memory, the runtime data area (that is, the method area, heap, and stack) to store program data, the execution engine, which reads and executes bytecode instructions, and the garbage collector. The JVM Specifications~\cite{noauthor_java_nodate-1} describe in detail the requirements for a JVM to be compliant. 
 The thesis targets a particular implementation, mainly Oracle's Java HotSpot~\cite{noauthor_hotspot_nodate} and its JIT compiler for Java 21. 
+
 HotSpot relies on tiered compilation to optimize code execution. It consists of an interpreter and two JIT compilers: C1 and C2. 
 C1 compiles bytecode with a minimal time and space overhead, applying only a limited set of optimizations, while C2 employs a more aggressive optimization strategy, requiring more resources.
-The VM starts by interpreting the bytecode to minimize startup time, and collects profiling information at the same time. Using this information, once a method is deemed "hot" enough, C1 kicks in and starts compiling it. When the number of times the methods has been invoked (or the number of back-edges to that method) crosses another threshold, C2 recompiles the same code into a more optimized form. If an optimization is proven wrong, the code is deoptimized and the compiler reverts back to interpretations.  
+The VM starts by interpreting the bytecode to minimize startup time, and collects profiling information at the same time. Using this information, once a method is deemed "hot" enough, C1 kicks in and starts compiling it. When the number of times the method has been invoked (or the number of back-edges to that method) crosses another threshold, C2 recompiles the method into a more optimized form. If an optimization is proven wrong, the method is deoptimized and the compiler reverts back to interpretations.  
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{GraalVM}
@@ -27,9 +28,9 @@ Graal is a compiler that relies on multiple optimizations phases to produce opti
 The JVMCI~\cite{noauthor_jep_nodate}~(JVM Compiler Interface) API offers mechanisms to access the JVM internal data structures and install compiled code. Through this interface, Graal can integrate as a JIT compiler into HotSpot's system and replace C2. 
 Graal can also be integrated with Native Image as the AOT compiler.
 
-Native Image~\cite{wimmer_initialize_2019} is a compilation technology that compiles Java bytecode ahead-of-time into standalone binaries. This approach aims at reducing the startup time and memory footprint of Java applications. Native Image operates under the closed-world assumption, all Java classes, which includes the JDK, must be known at build time to be included in the image.
-This also means, that every reflectively-accessed elements must be specified in reachability metadata to be made available to the build process. 
-At build time, during static analysis, points-to-analysis and heap snapshotting are iteratively applied so that only reachable code remains in the final image. Additionally, part of the initialization code of the application can be executed at build time rather than at runtime.
+Native Image~\cite{wimmer_initialize_2019} is a compilation technology that compiles Java bytecode ahead-of-time into standalone binaries. This approach aims at reducing the startup time and memory footprint of Java applications. Native Image operates under the closed-world assumption: all Java classes, which includes the JDK, must be known at build time to be included in the image.
+This also means, that every reflectively-accessed elements must be specified in the reachability metadata to be made available to the build process. 
+At build time, during static analysis, points-to-analysis and heap snapshotting are iteratively applied so that only reachable code remains in the final image. Additionally, part of the initialization code of the application can be executed at build time rather than at runtime, thus improving the startup time.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Java's Dynamic Features}
@@ -37,7 +38,7 @@ At build time, during static analysis, points-to-analysis and heap snapshotting 
 One of the cornerstones of the Java platform is its dynamic features. At run time, JARs, resources, and proxies can be loaded, and methods can be invoked without the compiler having seen them before. In the following section, we will dive deeper into the mechanisms of dynamic class loading and invocation.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\subsection{Dynamic Class Loading}
+\subsection{Dynamic Class Loading}\label{dynamic_class_loading}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Dynamic class loading~\cite{liang_dynamic_1998} allows Java applications to load, link, and initialize classes at runtime. Plugins, for example, can be loaded and unloaded without restarting the application; dependency injection relies on late binding of dependencies, which is made possible with dynamic class loading. 
 
