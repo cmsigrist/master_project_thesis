@@ -7,7 +7,7 @@
 % how the design fits together.
 % Use as much as needed.
 
-The goal is to port Java to native restrictions while applying a minimal set of changes to Java itself. We want Java to behave exactly like Native Image, and crash for the exact same reasons that Native Image does. Our design targets \verb|labsjdk-ce-21|, the community edition of the JDK developed at Oracle Labs. 
+The goal is to port Java to native restrictions while applying a minimal set of changes to Java itself. We want Java to behave exactly like Native Image, and crash for the exact same reasons that Native Image does. Our design targets \verb|labsjdk-ce-21|, a fork of OpenJDK 21. 
 This section explains (1) how we model semantics changes through the concept of native restrictions, (2) how defining scopes in Java enables us to express these changes, and (3) how we improve Native Image usability.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -337,6 +337,11 @@ To run the tests in the TCK, the test harness instantiates an instance of \verb|
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{The Native Image Semantics}\label{native_image_specs}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Native Image operates under the closed-world assumption. This assumption affects the semantics of reflection of the 
+Java® programming language as defined in the 
+[Java Language Specification](https://docs.oracle.com/javase/specs/jls/se21/html/index.html).
+We refer to this set of semantics as Native Image reflection semantics, which is equivalent to running
+Java under native restrictions.
 %% TODO add snippets of code to show how it differes from normal Java
 
 % ## Unimplemented Features

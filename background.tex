@@ -120,7 +120,7 @@ This instruction is distinct from the JVM's traditional method invocation instru
 
 At the core of the \verb|invokedynamic|'s resolution mechanism is the bootstrap method. A bootstrap method is a user-defined method that the JVM invokes the first time an \verb|invokedynamic| instruction is executed. Some bootstrap methods are provided by the JVM itself. For example, lambda expressions in Java use the \verb|LambdaMetafactory#metafactory| or \verb|altmetafactory| as their bootstrap methods. 
 % Similarly, for performance reasons, the JVM now uses the \verb|invokedynamic| instruction for string concatenation~\cite{noauthor_jep_nodate-1}, the \verb|StringConcatFactory#makeConcat| is the bootstrap method.
-This bootstrap method returns a \verb|CallSite| object, which encapsulates a target \verb|MethodHandle|. The \verb|MethodHandle| is a reference to an executable or a field and contains all the necessary mechanisms and data structure to invoke or access the object it references (e.g., the element's defining class, name, type signature, and methods to access it). 
+This bootstrap method returns a \verb|CallSite| object, which encapsulates a target \verb|MethodHandle|. The \verb|MethodHandle| is a reference to an executable or a field and contains all the necessary mechanisms and data structure to invoke or access the object it references (e.g., the element's defining class, name, type signature, and methods to access it).\todo{add example, or add more details on Lambda form and } 
 
 \verb|CallSite| resolution involves three steps: (1) the bootstrap method handle is resolved, meaning all symbolic references to classes, interfaces, fields, and methods, as well as, all classes and interfaces contained in the method descriptor must be resolved, (2) the bootstrap method is invoked, and finally (3) the \verb|CallSite| is verified.
 Once resolved, the \verb|CallSite| is cached and associated to a particular \verb|invokedynamic| instruction.
@@ -171,7 +171,6 @@ Implementing reflection in HotSpot is rather straightforward, as every Java obje
 % [On the other hand, the shared, type-specific metadata is stored in an area called metaspace and every Java object header contains a pointer to the metadata for the class that the object belongs to. This is known as the klass word of the header.
 % The fact that every object has a pointer to the shared class metadata means that during code execution, the JVM can always traverse the pointer and access the runtime type information of the class that the object belongs to.] copy pasted from~\cite{evans_ben_reflection_nodate} 
 
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Native Image's Implementation of Reflection and Java's Dynamic Features}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -190,7 +189,7 @@ Figure~\ref{fig:reflective_calls}, for example, would require the following entr
     \label{fig:reflect_config}
 \end{figure}
 
-To help capture this metadata, GraalVM provides a Tracing Agent. Through the JVM Tool Interface~\cite{noauthor_jvmtm_nodate}, a native library, or \emph{agent}, can attach to the JVM, and access and control the state of the applications running on the JVM. GraalVM's Tracing Agent introduces a list breakpoints for each method of the Java Reflection API to stop the JVM and record the reflectively-accessed elements. When the execution run has finished, the agent outputs a JSON reflection configuration that can be passed to the image-build process.
+To help capture this metadata, GraalVM provides a Tracing Agent. Through the JVM Tool Interface~\cite{noauthor_jvmtm_nodate}, a native library, or \emph{agent}, can attach to the JVM, and access and control the state of the applications running on the JVM. GraalVM's Tracing Agent introduces a list of breakpoints for each method of the Java Reflection API to stop the JVM and record the reflectively-accessed elements. When the execution run has finished, the agent outputs a JSON reflection configuration that can be passed to the image-build process.
 
 If the reflectively-accessed element is passed as a constant or effectively constant (see Figure~\ref{fig:computing_reflection_metadata_in_code_code}), the reachability metadata can be pre-computed at build time, and the element does not need to be manually included in the JSON configuration. 
 
