@@ -35,3 +35,5 @@ In NI, everything that attemps to load a MH at runtime returns null -> instead a
 
 - BMH is a small struct containing one or more saved argument values, plus a target method handle which will eventually receive those arguments
 - for opti we allow the binding of arg to BMH -> so ClassSpecializer must be able to define the LL, LLL etc.
+
+- A CallSite is a holder for a variable MethodHandle, which is called its target. An invokedynamic instruction linked to a CallSite delegates all calls to the site's current target. A CallSite may be associated with several invokedynamic instructions, or it may be "free floating", associated with none. In any case, it may be invoked through an associated method handle called its dynamic invoker. 

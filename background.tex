@@ -23,12 +23,12 @@ The VM starts by interpreting the bytecode to minimize startup time, and collect
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{GraalVM}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-GraalVM is a runtime ecosystem developed by Oracle Labs, and features three core components: the Graal compiler, Truffle~\cite{noauthor_truffle_nodate}, and Native Image.
-Graal is a compiler that relies on multiple optimizations phases to produce optimized machine code from bytecode. The compiler operates on a language-agnostic intermediate representation called Graal~IR~\cite{duboscq_graal_2013}. Graal~IR not only facilitates the implementation of speculative optimizations, it also enables Graal to run guest programming languages (e.g., JavaScript, Python, Ruby) on the same JVM. 
+GraalVM is a runtime ecosystem developed by Oracle Labs, and features three core components: the Graal compiler~\cite{noauthor_graal_nodate}, Truffle~\cite{noauthor_truffle_nodate}, and Native Image~\cite{wimmer_initialize_2019}.
+Graal is a compiler that relies on multiple optimizations phases to produce optimized machine code from bytecode. The compiler operates on a language-agnostic intermediate representation called Graal~IR~\cite{duboscq_graal_2013}. Graal~IR not only facilitates the implementation of speculative optimizations, it also enables Graal to compile \todo{maybe dynamic. Guest is strange.} programming languages that are not JVM-based (e.g., JavaScript, Python, Ruby). % and run them on the same JVM.
 The JVMCI~\cite{noauthor_jep_nodate}~(JVM Compiler Interface) API offers mechanisms to access the JVM internal data structures and install compiled code. Through this interface, Graal can integrate as a JIT compiler into HotSpot's system and replace C2. 
 Graal can also be integrated with Native Image as the AOT compiler.
 
-Native Image~\cite{wimmer_initialize_2019} is a compilation technology that compiles Java bytecode ahead-of-time into standalone binaries. This approach aims at reducing the startup time and memory footprint of Java applications. Native Image operates under the closed-world assumption: all Java classes, which includes the JDK, must be known at build time to be included in the image.
+Native Image is an image builder that compiles Java bytecode ahead of time into a standalone binary. This approach aims at reducing the startup time and memory footprint of Java applications. Native Image operates under the closed-world assumption: all Java classes, which includes the JDK, must be known at build time to be included in the image.
 This also means, that every reflectively-accessed elements must be specified in the reachability metadata to be made available to the build process. 
 At build time, during static analysis, points-to-analysis and heap snapshotting are iteratively applied so that only reachable code remains in the final image. Additionally, part of the initialization code of the application can be executed at build time rather than at runtime, thus improving the startup time.
 
@@ -44,8 +44,7 @@ Dynamic class loading~\cite{liang_dynamic_1998} allows Java applications to load
 
 Class loaders are the underlying mechanism used for loading classes. 
 There are two types of class loaders: the bootstrap (or system) class loader, which loads all the system classes, and user-defined class loaders, which load classes from user-defined sources.
-Class loaders operate on a delegation model. If a class loader L directly loads C, then L is the \emph{defining loader} of C, otherwise L recursively delegate the loading to another class loader, until the defining loader of C is found. L is an \emph{initiating loader} of C. 
-Concretely, a class loader in an instance of a subclass of the class \verb|ClassLoader|. 
+Class loaders operate on a delegation model. If a class loader \verb|L| directly loads \verb|C|, then \verb|L| is the \emph{defining loader} of \verb|C|, otherwise \verb|L| recursively delegate the loading to another class loader, until the defining loader of \verb|C| is found. \verb|L| is an \emph{initiating loader} of \verb|C|. Concretely, a class loader in an instance of a subclass of the class \verb|ClassLoader|. 
 Figure~\ref{fig:classloader}, shows the key methods of the class.
 
 \begin{figure}[ht]
@@ -81,8 +80,8 @@ class ClassLoader {
 The method \verb|loadClass| is the usual entry point to initiate class loading. It can be called directly from user code, or triggered by a JVM instruction.
 When loading a class \verb|C| with the system class loader (see Figure~\ref{fig:class_C}), the JVM first checks with the method \verb|findLoadedClass|, if \verb|C| has already been loaded, in which case it immediately returns the class, otherwise, the class loader attempts to locate the corresponding data. 
 
-Linking a class or interface C is done in three steps: (1) the JVM verifies that the binary representation of the class or interface C is correct, (2) the static fields of C are created and initialized, and (3) symbolic references are resolved into direct references. If C has a direct superclass or superinterface D, then D must also be verified and prepared. 
-Once all symbolic references have been resolved, the JVM invokes the method \verb|defineClass0|, \verb|defineClass1| or \verb|defineClass2| to transform the array of bytes into a run-time representation of the class, and returns a \verb|Class| object.
+Linking a class or interface \verb|C| is done in three steps: (1) the JVM verifies that the binary representation of the class or interface \verb|C| is correct, (2) the static fields of \verb|C| are created and initialized, and (3) symbolic references are resolved into direct references. If \verb|C| has a direct superclass or superinterface \verb|D|, then \verb|D| must also be verified and prepared. 
+Once all symbolic references have been resolved, the JVM invokes the method \verb|defineClass1|, \verb|defineClass2| or \verb|defineClass0| to transform the array of bytes into a run-time representation of the class, and returns a \verb|Class| object.
 
 \begin{figure}[ht]
     \centering
@@ -96,21 +95,9 @@ class Main {
     }
 }
 \end{lstlisting}
-    \caption{Dynamically loading the class C.}
+    \caption{Dynamically loading the class \texttt{C} at runtime.}
     \label{fig:class_C}
 \end{figure}
-
-% \subsubsection{Native Image implementation}
-% There are three main cases for how Native Image supports dynamic class loading: (1) the argument passed to \verb|loadClass| is a constant or is effectively constant, the argument is constant folded during static analysis, and gets compiled in the image, (2) the class is included in the reachability metadata, (3) the class is not a constant, nor is it registered, in which case the image will throw an exception at runtime.
-
-
-% Every Java class used at build time is said to be build-time initialized. Note that merely loading a class does not necessarily initialize it. The static class initializer of build-time initialized classes executes on the JVM running the image build. If a class is initialized at build time, its static fields are saved in the produced binary. At run time, using such a class for the first time does not trigger class initialization.
-% 
-% Static analysis is a process that determines which program elements (classes, methods and fields) are used by an application. These elements are also referred to as reachable code. The analysis itself has two parts:
-
-% Scanning the bytecodes of a method to determine what other elements are reachable from it.
-% Scanning the root objects in the native image heap (i.e., static fields) to determine which classes are reachable from them. It starts from the entry points of the application (i.e., the main method). The newly discovered elements are iteratively scanned until further scanning yields no additional changes in element’s reachability.
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{The \texttt{invokedynamic} Instruction}
@@ -118,94 +105,85 @@ class Main {
 The \verb|invokedynamic| instruction~\cite{noauthor_java_nodate} was introduced to support the invocation of methods without static type information at runtime.
 This instruction is distinct from the JVM's traditional method invocation instructions (\verb|invokevirtual|, \verb|invokeinterface|, \verb|invokestatic|, and \verb|invokespecial|) in that it does not bind to a method at compile time. Instead, it defers the decision of which method to invoke until runtime.
 
-At the core of the \verb|invokedynamic|'s resolution mechanism is the bootstrap method. A bootstrap method is a user-defined method that the JVM invokes the first time an \verb|invokedynamic| instruction is executed. Some bootstrap methods are provided by the JVM itself. For example, lambda expressions in Java use the \verb|LambdaMetafactory#metafactory| or \verb|altmetafactory| as their bootstrap methods. 
-% Similarly, for performance reasons, the JVM now uses the \verb|invokedynamic| instruction for string concatenation~\cite{noauthor_jep_nodate-1}, the \verb|StringConcatFactory#makeConcat| is the bootstrap method.
-This bootstrap method returns a \verb|CallSite| object, which encapsulates a target \verb|MethodHandle|. The \verb|MethodHandle| is a reference to an executable or a field and contains all the necessary mechanisms and data structure to invoke or access the object it references (e.g., the element's defining class, name, type signature, and methods to access it).\todo{add example, or add more details on Lambda form and } 
-
-\verb|CallSite| resolution involves three steps: (1) the bootstrap method handle is resolved, meaning all symbolic references to classes, interfaces, fields, and methods, as well as, all classes and interfaces contained in the method descriptor must be resolved, (2) the bootstrap method is invoked, and finally (3) the \verb|CallSite| is verified.
+At the core of the \verb|invokedynamic|'s resolution mechanism is the bootstrap method. A bootstrap method is a user-defined method that the JVM invokes the first time an \verb|invokedynamic| instruction is executed. Some bootstrap methods are provided by the JVM itself. For example, lambda expressions in Java use the \verb|LambdaMetafactory#metafactory| or \verb|altmetafactory| as their bootstrap methods.
+This bootstrap method returns a \verb|CallSite| object, which encapsulates a target \verb|MethodHandle|. The \verb|MethodHandle| is a reference to an executable or a field. 
+It contains mechanisms to invoke or access the object it references and a reference to its symbolic form: a \verb|java.lang.invoke.LambdaForm|. The \verb|LambdaForm| has a \verb|MemberName| field that encapsulates the element's declaring class, name, and its type parameters if it has any. This \verb|MemberName| must be resolved before the method handle can be invoked. 
+% The \verb|MethodHandle| is a reference to an executable or a field and contains all the necessary mechanisms and data structure to invoke or access the object it references (e.g., the element's defining class, name, type signature, and methods to access it).
 Once resolved, the \verb|CallSite| is cached and associated to a particular \verb|invokedynamic| instruction.
-For subsequent invocations, the bootstrap method is not re-executed, instead the method handle encapsulated in the \verb|CallSite| can be directly invoked.
-
-% The main difference between HotSpot's implementation of \verb|invokedynamic| and Native Image's resides in the \verb|CallSite| resolution. Native Image distinguishes how it handles \verb|CallSite| resolution based on whether the bootstrap method is JVM-implemented or not. For trusted, JVM-implemented bootstrap methods, resolution occurs at build time. Otherwise, the bootstrap method is interpreted at runtime and the resolution relies on reflection, requiring the declaring class, the method and the method types to be registered for reflection.
-
-% This MethodHandle effectively directs subsequent invocations of the invokedynamic instruction, bypassing the need for further resolution. The ability to specify the bootstrap method, along with the CallSite and MethodHandle it produces, allows for dynamic language behaviors such as runtime method linking and method invocation based on runtime conditions rather than static analysis.
-
-%    Any exception that can be thrown as a result of failure of resolution of a symbolic reference to a method type can be thrown in this step.
-
-
-% Each invokedynamic has a known bootstrap method given as its compile-time parameter. Whenever a invokedynamic is processed for a first time, appropriate bootstrap method is invoked. As result of boostrap method execution a CallSite object is created. This CallSite object is then cached and associated by JVM to a given invokedynamic operation. From now on, whenever particular invokedynamic call is to be executed, a cached CallSite instance is used to resolve called method.
-
-% Majority of boostrap methods are not written directly by end Java programmer. However that doesn't mean they are some rare obscure mechanism. They are created by javac compiler whenever particular java statements are used within source. String concatenation or lambda expression come to mind.
-
-% For example lambda expression could be implemented as inner classes. For matter of fact, lambdas are presented to programmers 'as shorthand' to using inner classes. However actual javac implementation, for performance reasons, avoids inner classes by generating lambda code under a static method and using invokedynamic to invoke this method.
-
-% Talk about the bootstrap method invokers, invokers, lanbdametafactory and altmetafactory and lambdaforms -> interpretation until the lambdaform is
-% considered to be hot enough to be compiled, customized, uncustomized if needed, cf tiered compilation
-
+For subsequent invocations, the bootstrap method is not re-executed, instead the target method handle of the \verb|CallSite| can be directly invoked.
+% Before the \verb|CallSite| is returned, it must first be resolved. \verb|CallSite| resolution involves three steps: (1) the bootstrap method handle is resolved, meaning all symbolic references to classes, interfaces, fields, and methods, as well as, all classes and interfaces contained in the method descriptor must be resolved, (2) the bootstrap method is invoked, and finally (3) the \verb|CallSite| is verified.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Java Reflection API}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Java reflection provides an API that allows programs to inspect and manipulate objects, mainly Classes, Executables, and Fields at runtime.
-Through reflection, Java programs can dynamically load classes, access fields, invoke methods, and create instances of classes with no compile-time dependency. It is also the core mechanism used to implement serialization and annotation processing. Figure~\ref{fig:reflective_calls} shows an example of Java program that uses the reflection API to invoke a method.
+Java Reflection provides an API that allows programs to dynamically access classes, their executables and fields, their metadata, as well as invoke methods, and create instances of classes at runtime, with no compile-time dependency. It is also the core mechanism used to implement serialization and annotation processing. Figure~\ref{fig:reflective_calls} shows an example of a Java program that uses the reflection API to invoke a method.
 
 \begin{figure}[ht]
     \centering
 \begin{lstlisting}[language=Java]
-class C {
-    public static void greet(String arg) {}
-}
-class Main {
-    public static void main(String[] args) throws Exception {
-        Class<?> c = Class.forName("C");
-        Method greet = c.getDeclaredMethod("greet", String.class);
-        greet.invoke(c, "Hello there!");
+class Greeter {
+    public static void greet(String message) { 
+        System.out.println(message); 
     }
 }
+public class Main {
+    public static void main(String[] args) throws ReflectiveOperationException {
+        Class<?> greeter = Class.forName("Greeter");
+        Method greet = greeter.getDeclaredMethod("greet", String.class);
+        greet.invoke(greeter, "Hello there!");
+    }   
+}
 \end{lstlisting}
-    \caption{Using reflection, the class C can be loaded and its \texttt{greet} method invoked at runtime.}
+    \caption{Through reflection, the program obtains a \texttt{Class} object of type \texttt{Greeter} and invokes its method \texttt{greet} at runtime.}
     \label{fig:reflective_calls}
 \end{figure}
 
-Implementing reflection in HotSpot is rather straightforward, as every Java object header contains a pointer to the metadata for its declaring class. At runtime, the JVM traverses the pointers until it reaches the object's declaring class~\cite{evans_ben_reflection_nodate}, and returns the queried element.
-
-% [On the other hand, the shared, type-specific metadata is stored in an area called metaspace and every Java object header contains a pointer to the metadata for the class that the object belongs to. This is known as the klass word of the header.
-% The fact that every object has a pointer to the shared class metadata means that during code execution, the JVM can always traverse the pointer and access the runtime type information of the class that the object belongs to.] copy pasted from~\cite{evans_ben_reflection_nodate} 
+The implementation of reflection in HotSpot relies on the pointer contained every Java object header that points to the metadata for its declaring class. At runtime, the JVM traverses the pointers until it reaches the object's declaring class~\cite{evans_ben_reflection_nodate} and returns the reflectively-accessed element.
+% Implementing reflection in HotSpot is rather straightforward, as every Java object header contains a pointer to the metadata for its declaring class. At runtime, the JVM traverses the pointers until it reaches the object's declaring class~\cite{evans_ben_reflection_nodate}, and returns the queried element.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Native Image's Implementation of Reflection and Java's Dynamic Features}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Reflection, dynamic class loading and dynamic invocation all require runtime information that Native Image does not have at build time. Therefore, reflectively-accessed element must be provided as reachability metadata, which can be user-provided in the form of a JSON configuration file.  
-Figure~\ref{fig:reflective_calls}, for example, would require the following entries to be specified in a \verb|META-INF/native-image/reflect-config.json| file placed at the root of the project:
+Reflection, dynamic class loading and dynamic invocation all require runtime information that Native Image does not have at build time. Therefore, reflectively-accessed element must be provided as reachability metadata, which can be user-provided in the form of a JSON reflection configuration file.  
+Figure~\ref{fig:reflective_calls_invoke}, for example, would require the entry in Figure~\ref{fig:reflect_config} to be specified in a \verb|META-INF/native-image/reflect-config.json| file placed at the root of the project.
+
+\begin{figure}[ht]
+    \centering
+\begin{lstlisting}[language=Java]
+public class Main {
+    public static void main(String[] args) throws ReflectiveOperationException 
+    {
+        invoke("Greeter", "greet", String.class, "Hello there!");
+    }   
+    public static void invoke(String className, 
+        String methodName, Class<?> paramType, String arg) 
+        throws ReflectiveOperationException 
+    {
+        Class<?> clazz = Class.forName(className);
+        Method m = clazz.getDeclaredMethod(methodName, paramType);
+        m.invoke(clazz, arg);
+    }
+}
+\end{lstlisting}
+    \caption{The \texttt{main} method invokes, through reflection, the method \texttt{greet} of the \texttt{Greeter} class. The \texttt{className} and \texttt{methodName} passed to the method \texttt{invoke} are not passed as constants and require to be registered for reflection.}
+    \label{fig:reflective_calls_invoke}
+\end{figure}
 
 \begin{figure}[ht]
     \centering
 \begin{lstlisting}
 [{
-    "name":"C",
+    "name":"Greeter",
     "methods": [{"name": "greet", parameterTypes: ["java.lang.String"]}]
 }]    
 \end{lstlisting}
-    \caption{Reflection configuration to load the class C and invoke its method greet.}
+    \caption{Reflection configuration required to access the class \texttt{Greeter} and invoke its method \texttt{greet} with a \texttt{String} argument.}
     \label{fig:reflect_config}
 \end{figure}
 
 To help capture this metadata, GraalVM provides a Tracing Agent. Through the JVM Tool Interface~\cite{noauthor_jvmtm_nodate}, a native library, or \emph{agent}, can attach to the JVM, and access and control the state of the applications running on the JVM. GraalVM's Tracing Agent introduces a list of breakpoints for each method of the Java Reflection API to stop the JVM and record the reflectively-accessed elements. When the execution run has finished, the agent outputs a JSON reflection configuration that can be passed to the image-build process.
 
-If the reflectively-accessed element is passed as a constant or effectively constant (see Figure~\ref{fig:computing_reflection_metadata_in_code_code}), the reachability metadata can be pre-computed at build time, and the element does not need to be manually included in the JSON configuration. 
+If the reflectively-accessed element is passed as a constant or effectively constant, as is the case in Figure~\ref{fig:reflective_calls}, the reachability metadata can be pre-computed. That is, the constant gets constant-folded at image build time, and the element does not need to be manually included in the JSON reflection configuration.
 
-\begin{figure}[ht]
-    \centering
-\begin{lstlisting}[language=Java]
-public static void main(String[] args) {
-    Class.forName("java.lang.String")
-    String.class.getDeclaredMethod("length", String.class)
-}    
-\end{lstlisting}
-    \caption{The reflective accesses are done on constant arguments that get constant-folded at image build time, as such, the reachability metadata are pre-computed in user code.}
-    \label{fig:computing_reflection_metadata_in_code_code}
-\end{figure}
+There are two outcomes to dynamically loading a class in Native Image: (1) the argument passed to \verb|loadClass| is a constant or the class is included in the reachability metadata and the call succeeds, (2) the class is not a constant, nor is it registered, in which case the image will throw a missing registration error at runtime.
 
-% Under the closed-world assumption no new element can be included in the universe after the image build time. Instead, to implement Java dynamic features Native Image relies on reflection\todo{what reflection?}. 
-There are three main cases for how Native Image supports dynamic class loading: (1) the argument passed to \verb|loadClass| is a constant, it is constant-folded during static analysis and compiled in the image, (2) the class is included in the reachability metadata, (3) the class is not a constant, nor is it registered, in which case the image will throw an exception at runtime.
-
-For the \verb|invokedynamic| instruction, the main difference between HotSpot's implementation and Native Image's resides in the \verb|CallSite| resolution. Native Image distinguishes how it handles \verb|CallSite| resolution based on whether the bootstrap method is JVM-implemented or not. For trusted, JVM-implemented bootstrap methods, resolution occurs at build time. Otherwise, the bootstrap method is interpreted at runtime. The resolution relies on reflection, and requires the declaring class, the method, and the types in the method signature to be registered for reflection.
+For the \verb|invokedynamic| instruction, the main difference between HotSpot's implementation and Native Image's resides in the bootstrap method resolution. Native Image distinguishes how it handles the resolution based on whether the bootstrap method is trusted, that is - it comes from the Java language - or not. For trusted bootstrap methods, resolution occurs at build time. Otherwise, the bootstrap method is interpreted at runtime. The resolution relies on reflection, and requires the declaring class, the method, and the types in the method signature to be registered for reflection.
