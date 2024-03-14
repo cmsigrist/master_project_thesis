@@ -32,7 +32,7 @@ Swift's proposal for opt-in reflection metadata~\cite{noauthor_pitch_2022} is a 
 
 Like Native Image and the Java mode, Jax~\cite{tip_practical_1999} relies on a configuration file to specify which element will be reflectively accessed at runtime. They also offer an instrumented application to trace and output the metadata.
 
-Scala Native~\cite{noauthor_scala_nodate} is an AOT compiler and a lightweight runtime for Scala that uses annotation to support reflection. Modules and classes marked with the \verb|@EnableReflectiveInstantation| can be reflectively queried at runtime by other libraries and frameworks. 
+Scala Native~\cite{noauthor_scala_nodate} is an AOT compiler and a lightweight runtime for Scala that uses annotation to support reflection. Modules and classes marked with the \verb|@EnableReflectiveInstantation| can be reflectively accessed at runtime by other libraries and frameworks. 
 This approach could be implemented in Java under native restrictions, and would offer the advantage of being both statically analysable and more transparent for users.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%

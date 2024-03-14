@@ -9,7 +9,7 @@ GraalVM Native Image compiles Java bytecode into a native image that operates un
 
 Due to the long image-build times, creating the correct metadata is a time-consuming process for users: if the metadata for any element is missing, the entire image must be rebuilt. The objective of this project is to allow users to compute metadata with a quick turnaround by introducing a new mode to Java, so that it operates under the closed-world assumption and behaves exactly like Native Image.
 
-We modify all reﬂective Java features to operate under the closed-world assumption by checking the reachability metadata to determine if the reﬂectively-accessed element is included in the image. We introduce a Tracing Agent to facilitate the collection of the metadata. 
+We modify all reﬂective Java features to operate under the closed-world assumption by checking the reachability metadata to determine if the reﬂectively-accessed element is included in the image. We introduce a new Tracing Agent to collect the metadata. 
 %% TODO check on the bytecode-to-bytecode partial evaluator move to future work
 % To pre-compute the reﬂectively-accessed elements we implement a bytecode-to-bytecode partial evaluator that transforms classes before they are loaded and extracts reachability metadata from them. 
 Finally, implementing the Java mode enables us to drive Native Image specifications and to clearly state what the expected behaviour is.   

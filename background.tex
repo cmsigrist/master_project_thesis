@@ -11,9 +11,9 @@
 \section{The Java Virtual Machine}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 Following the "write once, run anywhere" adage, the typical way of running a Java application is on a JVM.
-The JVM offers an additional, target-independent, layer of abstraction between implementations of the Java programming language and the operating system itself.
+The JVM offers an additional, target-independent, layer of abstraction between implementations of the Java programming language~\cite{noauthor_java_nodate-1} and the operating system itself.
 The JVM is responsible for interpreting and executing Java bytecode, and provides four key components~\cite{dannarapu_jvm_2023-1}: 
-the class loader to load classes into memory, the runtime data area (that is, the method area, heap, and stack) to store program data, the execution engine, which reads and executes bytecode instructions, and the garbage collector. The JVM Specifications~\cite{noauthor_java_nodate-1} describe in detail the requirements for a JVM to be compliant. 
+the class loader to load classes into memory, the runtime data area (that is, the method area, heap, and stack) to store program data, the execution engine, which reads and executes bytecode instructions, and the garbage collector. The JVM Specifications~\cite{noauthor_java_nodate-2} describe in detail the requirements for a JVM to be compliant. 
 The thesis targets a particular implementation, mainly Oracle's Java HotSpot~\cite{noauthor_hotspot_nodate} and its JIT compiler for Java 21. 
 
 HotSpot relies on tiered compilation to optimize code execution. It consists of an interpreter and two JIT compilers: C1 and C2. 
@@ -44,7 +44,7 @@ Dynamic class loading~\cite{liang_dynamic_1998} allows Java applications to load
 
 Class loaders are the underlying mechanism used for loading classes. 
 There are two types of class loaders: the bootstrap (or system) class loader, which loads all the system classes, and user-defined class loaders, which load classes from user-defined sources.
-Class loaders operate on a delegation model. If a class loader \verb|L| directly loads \verb|C|, then \verb|L| is the \emph{defining loader} of \verb|C|, otherwise \verb|L| recursively delegate the loading to another class loader, until the defining loader of \verb|C| is found. \verb|L| is an \emph{initiating loader} of \verb|C|. Concretely, a class loader in an instance of a subclass of the class \verb|ClassLoader|. 
+Class loaders operate on a delegation model. If a class loader \verb|L| directly loads \verb|C|, then \verb|L| is the \emph{defining loader} of \verb|C|, otherwise \verb|L| recursively delegate the loading to another class loader, until the defining loader of \verb|C| is found. In this case, \verb|L| is an \emph{initiating loader} of \verb|C|. Concretely, a class loader in an instance of a subclass of the class \verb|ClassLoader|. 
 Figure~\ref{fig:classloader}, shows the key methods of the class.
 
 \begin{figure}[ht]
@@ -81,6 +81,7 @@ The method \verb|loadClass| is the usual entry point to initiate class loading. 
 When loading a class \verb|C| with the system class loader (see Figure~\ref{fig:class_C}), the JVM first checks with the method \verb|findLoadedClass|, if \verb|C| has already been loaded, in which case it immediately returns the class, otherwise, the class loader attempts to locate the corresponding data. 
 
 Linking a class or interface \verb|C| is done in three steps: (1) the JVM verifies that the binary representation of the class or interface \verb|C| is correct, (2) the static fields of \verb|C| are created and initialized, and (3) symbolic references are resolved into direct references. If \verb|C| has a direct superclass or superinterface \verb|D|, then \verb|D| must also be verified and prepared. 
+
 Once all symbolic references have been resolved, the JVM invokes the method \verb|defineClass1|, \verb|defineClass2| or \verb|defineClass0| to transform the array of bytes into a run-time representation of the class, and returns a \verb|Class| object.
 
 \begin{figure}[ht]
@@ -107,7 +108,7 @@ This instruction is distinct from the JVM's traditional method invocation instru
 
 At the core of the \verb|invokedynamic|'s resolution mechanism is the bootstrap method. A bootstrap method is a user-defined method that the JVM invokes the first time an \verb|invokedynamic| instruction is executed. Some bootstrap methods are provided by the JVM itself. For example, lambda expressions in Java use the \verb|LambdaMetafactory#metafactory| or \verb|altmetafactory| as their bootstrap methods.
 This bootstrap method returns a \verb|CallSite| object, which encapsulates a target \verb|MethodHandle|. The \verb|MethodHandle| is a reference to an executable or a field. 
-It contains mechanisms to invoke or access the object it references and a reference to its symbolic form: a \verb|java.lang.invoke.LambdaForm|. The \verb|LambdaForm| has a \verb|MemberName| field that encapsulates the element's declaring class, name, and its type parameters if it has any. This \verb|MemberName| must be resolved before the method handle can be invoked. 
+It contains mechanisms to invoke or access the object it references, as well as a reference to its symbolic form: a \verb|java.lang.invoke.LambdaForm|. The \verb|LambdaForm| has a \verb|MemberName| field that encapsulates the element's declaring class, name, and its type parameters if it has any. This \verb|MemberName| must be resolved before the method handle can be invoked. 
 % The \verb|MethodHandle| is a reference to an executable or a field and contains all the necessary mechanisms and data structure to invoke or access the object it references (e.g., the element's defining class, name, type signature, and methods to access it).
 Once resolved, the \verb|CallSite| is cached and associated to a particular \verb|invokedynamic| instruction.
 For subsequent invocations, the bootstrap method is not re-executed, instead the target method handle of the \verb|CallSite| can be directly invoked.
@@ -137,7 +138,7 @@ public class Main {
     \label{fig:reflective_calls}
 \end{figure}
 
-The implementation of reflection in HotSpot relies on the pointer contained every Java object header that points to the metadata for its declaring class. At runtime, the JVM traverses the pointers until it reaches the object's declaring class~\cite{evans_ben_reflection_nodate} and returns the reflectively-accessed element.
+The implementation of reflection in HotSpot relies on the pointer contained every Java object header that points to the metadata for its declaring class~\cite{evans_ben_reflection_nodate}. At runtime, the JVM traverses the pointers until it reaches the object's declaring class and returns the reflectively-accessed element.
 % Implementing reflection in HotSpot is rather straightforward, as every Java object header contains a pointer to the metadata for its declaring class. At runtime, the JVM traverses the pointers until it reaches the object's declaring class~\cite{evans_ben_reflection_nodate}, and returns the queried element.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -172,7 +173,7 @@ public class Main {
     \centering
 \begin{lstlisting}
 [{
-    "name":"Greeter",
+    "name": "Greeter",
     "methods": [{"name": "greet", parameterTypes: ["java.lang.String"]}]
 }]    
 \end{lstlisting}
@@ -186,4 +187,4 @@ If the reflectively-accessed element is passed as a constant or effectively cons
 
 There are two outcomes to dynamically loading a class in Native Image: (1) the argument passed to \verb|loadClass| is a constant or the class is included in the reachability metadata and the call succeeds, (2) the class is not a constant, nor is it registered, in which case the image will throw a missing registration error at runtime.
 
-For the \verb|invokedynamic| instruction, the main difference between HotSpot's implementation and Native Image's resides in the bootstrap method resolution. Native Image distinguishes how it handles the resolution based on whether the bootstrap method is trusted, that is - it comes from the Java language - or not. For trusted bootstrap methods, resolution occurs at build time. Otherwise, the bootstrap method is interpreted at runtime. The resolution relies on reflection, and requires the declaring class, the method, and the types in the method signature to be registered for reflection.
+For the \verb|invokedynamic| instruction, the main difference between HotSpot's implementation and Native Image's resides in the bootstrap method resolution. Native Image distinguishes how it handles the resolution based on whether the bootstrap method is trusted, that is if it comes from the Java language or not. For trusted bootstrap methods, resolution occurs at build time. Otherwise, the bootstrap method is interpreted at runtime. The resolution relies on reflection, and requires the declaring class, the method, and the types in the method signature to be registered for reflection.
