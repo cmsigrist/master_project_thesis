@@ -338,17 +338,148 @@ To run the tests in the TCK, the test harness instantiates an instance of \verb|
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{The Native Image Reflection Semantics}\label{native_image_specs}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
 %% TODO add snippets of code to show how it differes from normal Java
+Under the closed-world assumption, Native Image operates on a different set of semantics to support reflection and dynamic class loading. This section specifies how the semantics of Native Image for reflection and dynamic class loading differs from the semantics of Java as defined in the Java Language Specification~\cite{noauthor_java_nodate-3}.
 
-% ## Unimplemented Features
-% #### java.lang.SecurityManager
-% The `java.lang.SecurityManager` behaves in the following ways:
-% * `java.lang.System#getSecurityManager()` always returns `null`
-% * `java.lang.System#setSecurityManager(SecurityManager sm)` returns without exception if `sm` is null. 
-% It throws a `SecurityException` if the system property `java.security.manager` is not set to `disallow`, and an 
-% `UnsupportedOperationException` otherwise.
+It is organised according to the following sections:
+\begin{enumerate}
+    \item Reflection
+    \item Dynamic Class Loading
+\end{enumerate}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Reflection}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Under the closed-world assumption, every reflectively-accessed element, that is, \texttt{Class}, \texttt{Executable}, and \texttt{Field}, must be included in the reflection metadata (see the documentation on Specifying Reflection Metadata in JSON~\cite{noauthor_reachability_nodate} for more detail). If the element is not registered for reflection, then a \texttt{MissingReflectionRegistrationError} is thrown.
+
+
+\subsubsection{Reflectively-Accessing a Class}
+
+Invoking \texttt{java.lang.Class\#forName} for a class or interface \verb|C| requires \verb|C| to be registered for reflection. If \verb|C| is registered and \verb|C| cannot be located, then a \texttt{ClassNotFoundException} is thrown. Superclasses of \verb|C| are not automatically registered for reflection if \verb|C| is registered.
+
+Looking up \verb|C| with the method \texttt{java.lang.invoke.MethodHandles.Lookup\#findClass} invokes \texttt{java.lang.Class\#forName}, and as such, requires \verb|C| to be registered for reflection.
+
+Creating a new array of component type \verb|C| using \texttt{java.lang.reflect.Array\#newInstance} requires \verb|C| to be registered for reflection.
+
+Instantiating \verb|C| with the method \texttt{sun.misc.Unsafe\#allocateInstance} requires \verb|C| to be registered for reflection, and the flag \texttt{unsafeAllocated} must be set to true.
+
+When called on the class or interface \verb|C|, the following methods require \verb|C| to be registered for reflection with a specific flag set to true:
+\begin{itemize}
+    \item \texttt{java.lang.Class\#getClasses} with the flag \texttt{allPublicClasses} 
+    \item \texttt{java.lang.Class\#getDeclaredClasses} with the flag \texttt{allDeclaredClasses} 
+    \item \texttt{java.lang.Class\#getMethods} with the flag \texttt{allPublicMethods} 
+    \item \texttt{java.lang.Class\#getDeclaredMethods} with the flag \texttt{allDeclaredMethods} 
+    \item \texttt{java.lang.Class\#getConstructors} with the flag \texttt{allPublicMethods} 
+    \item \texttt{java.lang.Class\#getDeclaredConstructors} with the flag \texttt{allDeclaredMethods} 
+    \item \texttt{java.lang.Class\#getFields} with the flag \texttt{allPublicFields} 
+    \item \texttt{java.lang.Class\#getDeclaredFields} with the flag \texttt{allDeclaredFields} 
+    \item \texttt{java.lang.Class\#getPermittedSubclasses} with the flag \texttt{allPermittedSubclasses} 
+    \item \texttt{java.lang.Class\#getNestMembers} with the flag \texttt{allNestMembers} 
+    \item \texttt{java.lang.Class\#getRecordComponents} with the flag \texttt{allRecordComponents} 
+    \item \texttt{java.lang.Class\#getSigners} with the flag \texttt{allSigners}
+\end{itemize}
+
+Instead of the aforementioned flags, the \texttt{type} entry, which has been recently introduced, can be used in the \texttt{reflect-config.json} to specify that all the class' metadata should be registered for reflection.
+
+\subsubsection{Reflectively-Accessing a Method}
+
+Invoking \texttt{java.lang.Class\#getMethod} and \texttt{java.lang.Class\#getDeclaredMethod} on a class or interface \verb|C| for a method \verb|M|, with parameters of types \verb|T1|\ldots\verb|Tn|, require \verb|C|, \verb|M| and \verb|T1|\ldots\verb|Tn| to be registered for reflection or \verb|C| to be registered as a \texttt{type} in the metadata. If the correct reflection metadata but \verb|M| cannot be found, then a \texttt{NoSuchMethodException} is thrown. 
+
+Invoking the method \verb|M| of \verb|C| using \texttt{java.lang.reflect.Method\#invoke} requires \verb|C| and M to be registered for reflection. A \texttt{MissingReflectionRegistrationError} is thrown if \verb|C| or \verb|M| is not registered for reflection or if \verb|C| is only registered as a \texttt{type}.
+
+
+\subsubsection{Reflectively-Accessing a Constructor}
+
+Invoking \texttt{java.lang.Class\#getConstructor} and \texttt{java.lang.Class\#getDeclaredConstructor} on a class or interface \verb|C| for a constructor \verb|N| with parameters of types \verb|T1|\ldots\verb|Tn|, require \verb|C|, \verb|N| and \verb|T1|\ldots\verb|Tn| to be registered for reflection or \verb|C| to be registered as a \texttt{type} in the metadata. If the correct reflection metadata but \verb|N| cannot be found, then a \texttt{NoSuchMethodException} is thrown.
+
+Creating a new instance of the class or interface \verb|C| using the constructor \verb|N| using \texttt{java.lang.reflect.Constructor\#newInstance} requires \verb|C| to be registered for reflection and \verb|N| to be registered as accessed in the reflection metadata. A \texttt{MissingReflectionRegistrationError} is thrown if \verb|C| or \verb|N| is not registered for reflection, or if \verb|C| is only registered as a \texttt{type}.
+
+\subsubsection{Reflectively-Accessing a Field}
+
+Invoking \texttt{java.lang.Class\#getField} and \texttt{java.lang.Class\#getDeclaredField} on a class or interface \verb|C| for a field \verb|F| require \verb|C| and \verb|F| to be registered for reflection, or if \verb|C| is only registered as a \texttt{type}. If the correct reflection metadata but \verb|F| cannot be found, then a \texttt{NoSuchFieldException} is thrown.
+
+\subsubsection{Looking up an Executable of Field}
+
+Invoking the following public methods of \texttt{java.lang.invoke.MethodHandles.Lookup} to find or unreflect an executable \verb|E| or a field \verb|F| of a class or interface \verb|C|, requires \verb|E| or \verb|F|, as well as \verb|C|, to be registered for reflection: 
+
+\begin{itemize}
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#bind} 
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#findGetter} 
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#findSetter} 
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#findVarHandle} 
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#findStaticGetter} 
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#findStaticSetter} 
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#findStaticVarHandle} 
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#findStatic} 
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#findVirtual} 
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#findConstructor} 
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#findSpecial} 
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#unreflect} 
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#unreflectConstructor} 
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#unreflectGetter} 
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#unreflectSetter} 
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#unreflectSpecial} 
+    \item \texttt{java.lang.invoke.MethodHandles\#arrayConstructor}
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Dynamic Class Loading}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+In this section, we explain the differences that occur during the process of dynamically loading a class or interface at runtime under the closed-world assumption. If not explicitly specified, then a call to a method refers to an API call rather than an internal calls.
+
+\subsubsection{Class and Interface Resolution}
+
+Under the closed-world assumption, the following rules apply: 
+\begin{itemize}
+    \item All classes from the classpath are linked at build time before the execution of the program  
+    \item All \texttt{invokedynamic} instructions are resolved at build time before program execution and replaced with adequate bytecodes
+\end{itemize}
+
+A class or interface \verb|C| dynamically loaded at runtime must be registered for reflection.
+
+If \verb|C| is not registered, then: 
+\begin{itemize}
+    \item Invoking the methods \texttt{java.lang.ClassLoader\#loadClass(String\ name,\ boolean\ resolve)} will result in a \texttt{MissingReflectionRegistrationError}. 
+    \item Invoking any method of a user-defined class loader that depends on the declared methods \texttt{java.lang.ClassLoader\#loadClass(String\ name,\ boolean\ resolve)}, \texttt{java.lang.ClassLoader\#findLoadedClass} will result in a \texttt{MissingReflectionRegistrationError}.
+\end{itemize}
+
+If \verb|C| is registered but a \texttt{LinkageError} or a \texttt{ClassNotFoundException} occurred during the linkage of \verb|C| at build time, then calling \texttt{java.lang.ClassLoader\#loadClass(String\ name,\ boolean\ resolve)} will result in an \texttt{UnsupportedOperationException}. Otherwise, resolution proceeds as described in \href{https://docs.oracle.com/javase/specs/jvms/se21/html/jvms-5.html\#jvms-5.4.3}{Section
+5.4.3. of the JLS}~\cite{noauthor_java_nodate-3}.
+
+Attempting to define a class directly from the bytecodes will result in an \texttt{UnsupportedOperationException}.
+
+As part of the \texttt{ìnvokedynamic} instruction, the following bootstrap methods are pre-resolved at build time:
+\begin{itemize}
+    \item \texttt{java.lang.invoke.ConstantBootstraps\#nullConstant} 
+    \item \texttt{java.lang.invoke.ConstantBootstraps\#primitiveClass} 
+    \item \texttt{java.lang.invoke.ConstantBootstraps\#enumConstant} 
+    \item \texttt{java.lang.invoke.ConstantBootstraps\#getStaticFinal} 
+    \item \texttt{java.lang.invoke.ConstantBootstraps\#invoke} 
+    \item \texttt{java.lang.invoke.ConstantBootstraps\#explicitCast} 
+    \item \texttt{java.lang.invoke.LambdaMetafactory\#metafactory} 
+    \item \texttt{java.lang.invoke.LambdaMetafactory\#altMetafactory} 
+    \item \texttt{java.lang.invoke.MethodHandles\#classData} 
+    \item \texttt{java.lang.invoke.MethodHandles\#classDataAt} 
+    \item \texttt{java.lang.invoke.StringConcat\#makeConcat} 
+    \item \texttt{java.lang.invoke.StringConcat\#makeConcatWithConstants} 
+    \item \texttt{java.lang.runtime.ObjectMethods\#bootstrap} 
+    \item \texttt{java.lang.runtime.SwitchBootstraps\#typeSwitch} 
+    \item \texttt{java.lang.runtime.SwitchBootstraps\#enumSwitch}
+\end{itemize}
+
+
+\subsubsection{Method Handle Resolution}
+
+Unless they are part of the \texttt{invokedynamic} instruction, calls to the following methods will result in an \texttt{UnsupportedOperationException}:
+\begin{itemize}
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#defineClass} 
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#defineHiddenClass} 
+    \item \texttt{java.lang.invoke.MethodHandles.Lookup\#defineHiddenClassWithClassData}
+\end{itemize}
+
+\subsubsection{Lambda Metafactory}
+
+Unless they are part of the \texttt{invokedynamic} instruction, calls to \texttt{java.lang.invoke.LambdaMetafactory\#metafactory} and \texttt{java.lang.invoke.LambdaMetafactory\#altMetafactory} will result in an \texttt{UnsupportedOperationException}.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -411,25 +542,56 @@ public class Main {
     \label{fig:benchmark}
 \end{figure}
 
-In the first benchmark, we compare the run time of Java under native restrictions, Java under native restrictions with the new Tracing Agent, Oracle OpenJDK 21, and Oracle OpenJDK21 with GraalVM's Tracing Agent attached, when all reflectively-accessed elements are correctly registered.
-We take the average of 10 runs, where each run executes 10'000 times the main method.
+In the first benchmark, we compare the execution time of Java under native restrictions, Java under native restrictions with the new Tracing Agent, Oracle OpenJDK 21, and Oracle OpenJDK21 with GraalVM's Tracing Agent attached, when all reflectively-accessed elements are correctly registered. We take the average execution time over 10,000 runs.
 Figure~\ref{tab:benchmark_1} shows that Java under native restrictions and Java under native restrictions with the Tracing Agent are naturally slower than Oracle OpenJDK, due to the native restrictions checks that both Java modes need to perform at runtime to simulate Native Image behaviour or to collect the metadata. 
-The takeaway of this experiment is that computing the reachability metadata with the new Tracing Agent is 5.5X faster than GraalVM's.
+Java under native restrictions is 1.56X slower without the Tracing Agent than with the Tracing Agent. Both runs follow exactly the same path during execution except during the restrictions checks. 
+One possible explanation for this slowdown is that the checks required to verify if an element is registered for reflection take more time than recording the reflectively-accessed element in the data structure.  The takeaway of this experiment is that computing the reachability metadata with the new Tracing Agent is 4.98X faster than GraalVM's.
 
-\begin{table}[ht]
+\begin{table}[]
 \centering
-\begin{tabular}{@{}lr@{}}
+\begin{tabular}{@{}llr@{}}
 \toprule
-                               & \multicolumn{1}{l}{Execution time (ns)} \\ \midrule
-Java under native restrictions & 28343                                   \\
-Java's Tracing Agent           & 11409                                   \\
-Oracle OpenJDK 21              & 739                                     \\ 
-GraalVM's Tracing Agent        & 63481                                   \\ \bottomrule
-% Native Image                   & 305                                     \\ \bottomrule
+                               &                       & \multicolumn{1}{l}{Average Execution Time (ns)} \\ \midrule
+Java under native restrictions & Without Tracing Agent & 25442                                           \\
+                               & With Tracing Agent    & 16273                                           \\ \midrule
+Oracle OpenJDK 21              & Without Tracing Agent & 1196                                            \\
+                               & With Tracing Agent    & 81089                                           \\ \bottomrule
 \end{tabular}
 \caption{Comparison of the execution time between 2 different Java implementations: Java under native restrictions and Oracle OpenJDK. Each JDK is also run with and without its implementation of the Tracing Agent.}
 \label{tab:benchmark_1}
 \end{table}
+% \begin{table}[ht]
+% \centering
+% \begin{tabular}{@{}lr@{}}
+% \toprule
+%                                & \multicolumn{1}{l}{Execution time (ns)} \\ \midrule
+% Java under native restrictions & 28343                                   \\
+% Java's Tracing Agent           & 11409                                   \\
+% Oracle OpenJDK 21              & 739                                     \\ 
+% GraalVM's Tracing Agent        & 63481                                   \\ \bottomrule
+% \end{tabular}
+% \caption{Comparison of the execution time between 2 different Java implementations: Java under native restrictions and Oracle OpenJDK. Each JDK is also run with and without its implementation of the Tracing Agent.}
+% \label{tab:benchmark_1}
+% \end{table}
+
+% Please add the following required packages to your document preamble:
+% \usepackage{booktabs}
+% \begin{table}[ht]
+% \centering
+% \resizebox{\columnwidth}{!}{%
+% \begin{tabular}{@{}llrrrr@{}}
+% \toprule
+% \multicolumn{2}{l}{\multirow{}{}{}}                  & \multicolumn{2}{l}{10\_000} & \multicolumn{2}{l}{10\_000*10} \\ \cmidrule(l){3-6} 
+% \multicolumn{2}{l}{} & \multicolumn{1}{l}{Average} & \multicolumn{1}{l}{Standard deviation} & \multicolumn{1}{l}{Average} & \multicolumn{1}{l}{Standard deviation} \\ \midrule
+% Java under native restrictions & Without Tracing Agent & 25442       & 67281.48      & 100457       & 96418.56        \\
+%                                & With Tracing Agent    & 16273       & 59641.66      & 95119        & 83675.85        \\ \midrule
+% Oracle OpenJDK 21              & Without Tracing Agent & 1196        & 4667.28       & 4455         & 282432.94       \\
+%                                & With Tracing Agent    & 81089       & 90071.88      & 614845       & 5055.59         \\ \bottomrule
+% \end{tabular}%
+% }
+% \caption{}
+% \label{tab:my-table}
+% \end{table}
 
 The metric we are interested in for the second experiment is the time it takes for Native Image and Java under native restrictions to crash when the reflection metadata is incomplete.
 We start to time the experiment with the \verb|time| bash command once \verb|javac| has finished compiling the program into class files. 
