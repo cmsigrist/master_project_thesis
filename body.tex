@@ -253,10 +253,11 @@ As seen in Figures~\ref{fig:bind_caller_lambda} and~\ref{fig:bind_caller_lrm}, t
     \centering
 \begin{lstlisting}[language=Java]
 static MethodHandle bindCaller(MethodHandle mh, Class<?> hostClass) {
-    return LanguageRestrictionManager.bindCallerCheck(() -> BindCaller.bindCaller(mh, hostClass));
+    return LanguageRestrictionManager.bindCallerCheck(() -> 
+        BindCaller.bindCaller(mh, hostClass));
 }
 \end{lstlisting}
-    \caption{Lambda expressions are used to hide implementation details in the \texttt{LanguageRestrictionManager} and minimize changes made to Java.}
+    \caption{Lambda expressions are used to hide implementation details in the \texttt{LanguageRestrictionManager} and minimize changes made to the JDK.}
     \label{fig:bind_caller_lambda}
 \end{figure}
 
@@ -269,7 +270,7 @@ public static MethodHandle bindCallerCheck(Supplier<MethodHandle> s) {
     }
 }
 \end{lstlisting}
-    \caption{The underlying mechanism when a lambda expressions is used to implement a native restrictions check.}
+    \caption{Implementation of the native restrictions checks in the \texttt{LanguageRestrictionManager} when the supplier \texttt{s} is passed as a lambda expression from the JDK.}
     \label{fig:bind_caller_lrm}
 \end{figure}
 
@@ -410,9 +411,10 @@ public class Main {
     \label{fig:benchmark}
 \end{figure}
 
-In the first benchmark, we compare the run time of Java under native restrictions, Java's Tracing Agent, Oracle OpenJDK 21, and GraalVM's Tracing Agent attached to Oracle OpenJDK 21,when all reflectively-accessed elements are correctly registered.
+In the first benchmark, we compare the run time of Java under native restrictions, Java under native restrictions with the new Tracing Agent, Oracle OpenJDK 21, and Oracle OpenJDK21 with GraalVM's Tracing Agent attached, when all reflectively-accessed elements are correctly registered.
 We take the average of 10 runs, where each run executes 10'000 times the main method.
-Figure~\ref{tab:benchmark_1} shows that Java under native restrictions and Java's Tracing Agent are naturally slower than Oracle OpenJDK, due to the native restrictions checks that both Java modes need to perform at runtime to simulate Native Image behaviour or to collect the metadata. The takeaway of this experiment is that computing the reachability metadata with Java's Tracing Agent is 5.5X faster than GraalVM's.
+Figure~\ref{tab:benchmark_1} shows that Java under native restrictions and Java under native restrictions with the Tracing Agent are naturally slower than Oracle OpenJDK, due to the native restrictions checks that both Java modes need to perform at runtime to simulate Native Image behaviour or to collect the metadata. 
+The takeaway of this experiment is that computing the reachability metadata with the new Tracing Agent is 5.5X faster than GraalVM's.
 
 \begin{table}[ht]
 \centering

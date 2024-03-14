@@ -24,7 +24,7 @@ The VM starts by interpreting the bytecode to minimize startup time, and collect
 \section{GraalVM}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 GraalVM is a runtime ecosystem developed by Oracle Labs, and features three core components: the Graal compiler~\cite{noauthor_graal_nodate}, Truffle~\cite{noauthor_truffle_nodate}, and Native Image~\cite{wimmer_initialize_2019}.
-Graal is a compiler that relies on multiple optimizations phases to produce optimized machine code from bytecode. The compiler operates on a language-agnostic intermediate representation called Graal~IR~\cite{duboscq_graal_2013}. Graal~IR not only facilitates the implementation of speculative optimizations, it also enables Graal to compile \todo{maybe dynamic. Guest is strange.} programming languages that are not JVM-based (e.g., JavaScript, Python, Ruby). % and run them on the same JVM.
+Graal is a compiler that relies on multiple optimizations phases to produce optimized machine code from bytecode. The compiler operates on a language-agnostic intermediate representation called Graal~IR~\cite{duboscq_graal_2013}. Graal~IR not only facilitates the implementation of speculative optimizations, it also enables Graal to compile programming languages that are not JVM-based (e.g., JavaScript, Python, Ruby). % and run them on the same JVM.
 The JVMCI~\cite{noauthor_jep_nodate}~(JVM Compiler Interface) API offers mechanisms to access the JVM internal data structures and install compiled code. Through this interface, Graal can integrate as a JIT compiler into HotSpot's system and replace C2. 
 Graal can also be integrated with Native Image as the AOT compiler.
 
