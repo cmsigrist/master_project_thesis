@@ -116,7 +116,7 @@ For subsequent invocations, the bootstrap method is not re-executed, instead the
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Java Reflection API}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-Java Reflection provides an API that allows programs to dynamically access classes, their executables and fields, their metadata, as well as invoke methods, and create instances of classes at runtime, with no compile-time dependency. It is also the core mechanism used to implement serialization and annotation processing. Figure~\ref{fig:reflective_calls} shows an example of a Java program that uses the reflection API to invoke a method.
+Java Reflection provides an API that allows programs to dynamically access classes, their executables and fields, their metadata, as well as invoke methods, and create instances of classes at runtime, with no compile-time dependency. It is also the core mechanism used to implement serialization and annotation processing. Figure~\ref{fig:reflective_calls} shows an example of a Java program that uses the Reflection API to invoke a method.
 
 \begin{figure}[ht]
     \centering
@@ -138,7 +138,7 @@ public class Main {
     \label{fig:reflective_calls}
 \end{figure}
 
-The implementation of reflection in HotSpot relies on the pointer contained every Java object header that points to the metadata for its declaring class~\cite{evans_ben_reflection_nodate}. At runtime, the JVM traverses the pointers until it reaches the object's declaring class and returns the reflectively-accessed element.
+The implementation of reflection in HotSpot relies on the pointer contained in every Java object header that points to the metadata for its declaring class~\cite{evans_ben_reflection_nodate}. At runtime, the JVM traverses the pointers until it reaches the object's declaring class and returns the reflectively-accessed element.
 % Implementing reflection in HotSpot is rather straightforward, as every Java object header contains a pointer to the metadata for its declaring class. At runtime, the JVM traverses the pointers until it reaches the object's declaring class~\cite{evans_ben_reflection_nodate}, and returns the queried element.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -181,9 +181,9 @@ public class Main {
     \label{fig:reflect_config}
 \end{figure}
 
-To help capture this metadata, GraalVM provides a Tracing Agent. Through the JVM Tool Interface~\cite{noauthor_jvmtm_nodate}, a native library, or \emph{agent}, can attach to the JVM, and access and control the state of the applications running on the JVM. GraalVM's Tracing Agent introduces a list of breakpoints for each method of the Java Reflection API to stop the JVM and record the reflectively-accessed elements. When the execution run has finished, the agent outputs a JSON reflection configuration that can be passed to the image-build process.
+To help capture this metadata, GraalVM provides a Tracing Agent. Through the JVM Tool Interface~\cite{noauthor_jvmtm_nodate}, a native library, or \emph{agent}, can attach to the JVM and access and control the state of the applications running on the JVM. GraalVM's Tracing Agent introduces a list of breakpoints for each method of the Java Reflection API to interrupt the application's normal execution flow and record the reflectively-accessed elements instead. When the execution run has finished, the agent outputs a JSON reflection configuration that can be passed to the image-build process.
 
-If the reflectively-accessed element is passed as a constant or effectively constant, as is the case in Figure~\ref{fig:reflective_calls}, the reachability metadata can be pre-computed. That is, the constant gets constant-folded at image build time, and the element does not need to be manually included in the JSON reflection configuration.
+If the reflectively-accessed element is passed as a constant or effectively constant, as in Figure~\ref{fig:reflective_calls}, the reachability metadata can be pre-computed. The constant gets constant-folded at image build time, and the element does not need to be manually included in the JSON reflection configuration.
 
 There are two outcomes to dynamically loading a class in Native Image: (1) the argument passed to \verb|loadClass| is a constant or the class is included in the reachability metadata and the call succeeds, (2) the class is not a constant, nor is it registered, in which case the image will throw a missing registration error at runtime.
 
