@@ -595,9 +595,9 @@ A surprising result is that Java under native restrictions is 1.56X slower witho
 \toprule
                                &                       & \multicolumn{1}{l}{Average Execution Time (ns)} \\ \midrule
 Java under native restrictions & Without Tracing Agent & 25442                                           \\
-                               & With Tracing Agent    & 16273                                           \\ \midrule
+                               & With the new Tracing Agent    & 16273                                           \\ \midrule
 Oracle OpenJDK 21              & Without Tracing Agent & 1196                                            \\
-                               & With Tracing Agent    & 81089                                           \\ \bottomrule
+                               & With the old Tracing Agent    & 81089                                           \\ \bottomrule
 \end{tabular}
 \caption{Comparison of the execution time between 2 different Java implementations: Java under native restrictions and Oracle OpenJDK. Each JDK is also run with and without its implementation of the Tracing Agent.}
 \label{tab:benchmark_1}
