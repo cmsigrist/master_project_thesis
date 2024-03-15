@@ -79,7 +79,7 @@ Under native restrictions, we check if the scope is open, in which case \verb|fi
 \begin{figure}
     \centering
     \includegraphics[scale=0.5]{resources/Group 412.png}
-    \caption{Calling sequence for class loading, with the wrapper function \texttt{runtimeLoadClass} and scopes to support dynamic class loading at runtime.}
+    \caption{Calling sequence for class loading with the wrapper function \texttt{runtimeLoadClass}, the checks and the scopes to support dynamic class loading at runtime.}
     \label{fig:load_class}
 \end{figure}
 
@@ -97,8 +97,8 @@ Therefore, for performance reasons, we opt to open scopes in \verb|jdk.internal.
 
 \begin{figure}
     \centering
-    \includegraphics[angle=90,origin=c,scale=0.35]{resources/Group 413.png}
-    \caption{Entry points for the method \texttt{java.lang.ClassLoader\#defineClass0}. For readability, the stack trace is not exhaustive and focuses on methods that have multiple callers.}
+    \includegraphics[angle=90,origin=c,scale=0.34]{resources/Group 413.png}
+    \caption{Entry points for the method \texttt{java.lang.ClassLoader\#defineClass0} with the checks and the scopes to support dynamic class loading. For readability, the stack trace is not exhaustive and focuses on methods that have multiple callers.}
     \label{fig:define_class_0}
 \end{figure}
 
